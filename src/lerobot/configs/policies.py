@@ -74,14 +74,21 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
 
     def __post_init__(self):
         self.pretrained_path = None
-        if not self.device or not is_torch_device_available(self.device):
+        
+        # 设备检测和设置逻辑
+        if self.device is None:
+            # 用户没有指定设备，自动选择
             auto_device = auto_select_torch_device()
-            # 修复警告信息，当device为None时显示更友好的信息
-            if self.device is None:
-                logging.info(f"Device not specified. Auto-selecting device: '{auto_device}'.")
-            else:
-                logging.warning(f"Device '{self.device}' is not available. Switching to '{auto_device}'.")
+            logging.info(f"Device not specified. Auto-selecting device: '{auto_device}'.")
             self.device = auto_device.type
+        elif not is_torch_device_available(self.device):
+            # 用户指定了设备但不可用，自动切换到可用设备
+            auto_device = auto_select_torch_device()
+            logging.warning(f"Specified device '{self.device}' is not available. Switching to '{auto_device}'.")
+            self.device = auto_device.type
+        else:
+            # 用户指定的设备可用，使用用户指定的设备
+            logging.info(f"Using specified device: '{self.device}'.")
 
         # Automatically deactivate AMP if necessary
         if self.use_amp and not is_amp_available(self.device):
