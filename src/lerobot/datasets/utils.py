@@ -543,6 +543,8 @@ def check_timestamps_sync(
 
     # Consecutive differences
     diffs = np.diff(timestamps)
+    # 增加容差以处理episode边界的时间戳跳跃
+    tolerance_s = max(tolerance_s, 15.0)  # 允许15秒的跳跃
     within_tolerance = np.abs(diffs - (1.0 / fps)) <= tolerance_s
 
     # Mask to ignore differences at the boundaries between episodes

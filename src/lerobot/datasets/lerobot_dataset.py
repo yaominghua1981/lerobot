@@ -456,6 +456,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.video_backend = video_backend if video_backend else get_safe_default_codec()
         self.delta_indices = None
         self.batch_encoding_size = batch_encoding_size
+        self.download_videos = download_videos
         self.episodes_since_last_encoding = 0
 
         # Unused attributes
@@ -584,7 +585,8 @@ class LeRobotDataset(torch.utils.data.Dataset):
     def get_episodes_file_paths(self) -> list[Path]:
         episodes = self.episodes if self.episodes is not None else list(range(self.meta.total_episodes))
         fpaths = [str(self.meta.get_data_file_path(ep_idx)) for ep_idx in episodes]
-        if len(self.meta.video_keys) > 0:
+        # 只有在download_videos为True时才包含视频文件
+        if hasattr(self, 'download_videos') and self.download_videos and len(self.meta.video_keys) > 0:
             video_files = [
                 str(self.meta.get_video_file_path(ep_idx, vid_key))
                 for vid_key in self.meta.video_keys
@@ -714,7 +716,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             for key, val in query_result.items():
                 item[key] = val
 
-        if len(self.meta.video_keys) > 0:
+        if len(self.meta.video_keys) > 0 and hasattr(self, "download_videos") and self.download_videos:
             current_ts = item["timestamp"].item()
             query_timestamps = self._get_query_timestamps(current_ts, query_indices)
             video_frames = self._query_videos(query_timestamps, ep_idx)
