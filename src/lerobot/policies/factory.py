@@ -170,7 +170,16 @@ def make_policy(
         # Make a fresh policy.
         policy = policy_cls(**kwargs)
 
-    policy.to(cfg.device)
+    # 修复GPU内存问题：使用to_empty()替代to()来处理meta tensor
+    try:
+        policy.to(cfg.device)
+    except NotImplementedError as e:
+        if "meta tensor" in str(e) and "to_empty" in str(e):
+            # 如果是meta tensor问题，使用to_empty()
+            policy.to_empty(device=cfg.device)
+        else:
+            raise e
+    
     assert isinstance(policy, nn.Module)
 
     # policy = torch.compile(policy, mode="reduce-overhead")
