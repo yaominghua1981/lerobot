@@ -16,7 +16,7 @@
 import abc
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Union, Dict, List, Tuple
 
 import draccus
 import torch
@@ -41,11 +41,11 @@ class OptimizerConfig(draccus.ChoiceRegistry, abc.ABC):
         return self.get_choice_name(self.__class__)
 
     @classmethod
-    def default_choice_name(cls) -> str | None:
+    def default_choice_name(cls) -> Union[str, None]:
         return "adam"
 
     @abc.abstractmethod
-    def build(self) -> torch.optim.Optimizer | dict[str, torch.optim.Optimizer]:
+    def build(self) -> Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]]:
         """
         Build the optimizer. It can be a single optimizer or a dictionary of optimizers.
         NOTE: Multiple optimizers are useful when you have different models to optimize.
@@ -62,7 +62,7 @@ class OptimizerConfig(draccus.ChoiceRegistry, abc.ABC):
 @dataclass
 class AdamConfig(OptimizerConfig):
     lr: float = 1e-3
-    betas: tuple[float, float] = (0.9, 0.999)
+    betas: Tuple[float, float] = (0.9, 0.999)
     eps: float = 1e-8
     weight_decay: float = 0.0
     grad_clip_norm: float = 10.0
@@ -77,7 +77,7 @@ class AdamConfig(OptimizerConfig):
 @dataclass
 class AdamWConfig(OptimizerConfig):
     lr: float = 1e-3
-    betas: tuple[float, float] = (0.9, 0.999)
+    betas: Tuple[float, float] = (0.9, 0.999)
     eps: float = 1e-8
     weight_decay: float = 1e-2
     grad_clip_norm: float = 10.0
@@ -121,9 +121,9 @@ class MultiAdamConfig(OptimizerConfig):
     lr: float = 1e-3
     weight_decay: float = 0.0
     grad_clip_norm: float = 10.0
-    optimizer_groups: dict[str, dict[str, Any]] = field(default_factory=dict)
+    optimizer_groups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
-    def build(self, params_dict: dict[str, list]) -> dict[str, torch.optim.Optimizer]:
+    def build(self, params_dict: Dict[str, List]) -> Dict[str, torch.optim.Optimizer]:
         """Build multiple Adam optimizers.
 
         Args:
@@ -153,7 +153,7 @@ class MultiAdamConfig(OptimizerConfig):
 
 
 def save_optimizer_state(
-    optimizer: torch.optim.Optimizer | dict[str, torch.optim.Optimizer], save_dir: Path
+    optimizer: Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]], save_dir: Path
 ) -> None:
     """Save optimizer state to disk.
 
@@ -182,8 +182,8 @@ def _save_single_optimizer_state(optimizer: torch.optim.Optimizer, save_dir: Pat
 
 
 def load_optimizer_state(
-    optimizer: torch.optim.Optimizer | dict[str, torch.optim.Optimizer], save_dir: Path
-) -> torch.optim.Optimizer | dict[str, torch.optim.Optimizer]:
+    optimizer: Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]], save_dir: Path
+) -> Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]]:
     """Load optimizer state from disk.
 
     Args:

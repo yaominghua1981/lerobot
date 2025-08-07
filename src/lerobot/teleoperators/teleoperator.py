@@ -14,6 +14,7 @@
 
 import abc
 import builtins
+from typing import Union, Dict, Type
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +39,7 @@ class Teleoperator(abc.ABC):
     """
 
     # Set these in ALL subclasses
-    config_class: builtins.type[TeleoperatorConfig]
+    config_class: Type[TeleoperatorConfig]
     name: str
 
     def __init__(self, config: TeleoperatorConfig):
@@ -50,7 +51,7 @@ class Teleoperator(abc.ABC):
         )
         self.calibration_dir.mkdir(parents=True, exist_ok=True)
         self.calibration_fpath = self.calibration_dir / f"{self.id}.json"
-        self.calibration: dict[str, MotorCalibration] = {}
+        self.calibration: Dict[str, MotorCalibration] = {}
         if self.calibration_fpath.is_file():
             self._load_calibration()
 
@@ -119,7 +120,7 @@ class Teleoperator(abc.ABC):
         """
         pass
 
-    def _load_calibration(self, fpath: Path | None = None) -> None:
+    def _load_calibration(self, fpath: Union[Path, None] = None) -> None:
         """
         Helper to load calibration data from the specified file.
 
@@ -130,7 +131,7 @@ class Teleoperator(abc.ABC):
         with open(fpath) as f, draccus.config_type("json"):
             self.calibration = draccus.load(dict[str, MotorCalibration], f)
 
-    def _save_calibration(self, fpath: Path | None = None) -> None:
+    def _save_calibration(self, fpath: Union[Path, None] = None) -> None:
         """
         Helper to save calibration data to the specified file.
 
@@ -150,7 +151,7 @@ class Teleoperator(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_action(self) -> dict[str, Any]:
+    def get_action(self) -> Dict[str, Any]:
         """
         Retrieve the current action from the teleoperator.
 
@@ -161,7 +162,7 @@ class Teleoperator(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def send_feedback(self, feedback: dict[str, Any]) -> None:
+    def send_feedback(self, feedback: Dict[str, Any]) -> None:
         """
         Send a feedback action command to the teleoperator.
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Dict, Tuple, List
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
@@ -16,7 +17,7 @@ class PI0FASTConfig(PreTrainedConfig):
     chunk_size: int = 10
     n_action_steps: int = 5
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.IDENTITY,
             "STATE": NormalizationMode.MEAN_STD,
@@ -29,7 +30,7 @@ class PI0FASTConfig(PreTrainedConfig):
     max_action_dim: int = 32  # 32
 
     # Image preprocessing
-    resize_imgs_with_padding: tuple[int, int] = (224, 224)
+    resize_imgs_with_padding: Tuple[int, int] = (224, 224)
     interpolate_like_pi: bool = False
 
     # Add empty images. Used by pi0_aloha_sim which adds the empty
@@ -64,7 +65,7 @@ class PI0FASTConfig(PreTrainedConfig):
 
     # Training presets
     optimizer_lr: float = 1e-4
-    optimizer_betas: tuple[float, float] = (0.9, 0.95)
+    optimizer_betas: Tuple[float, float] = (0.9, 0.95)
     optimizer_eps: float = 1e-8
     optimizer_weight_decay: float = 1e-5
 
@@ -128,7 +129,7 @@ class PI0FASTConfig(PreTrainedConfig):
         return None
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(self.chunk_size))
 
     @property

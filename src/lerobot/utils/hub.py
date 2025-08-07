@@ -15,7 +15,7 @@
 import builtins
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union, Dict, List, Type
 
 from huggingface_hub import HfApi
 from huggingface_hub.utils import validate_hf_hub_args
@@ -35,13 +35,13 @@ class HubMixin:
 
     def save_pretrained(
         self,
-        save_directory: str | Path,
+        save_directory: Union[str, Path],
         *,
-        repo_id: str | None = None,
+        repo_id: Union[str, None] = None,
         push_to_hub: bool = False,
-        card_kwargs: dict[str, Any] | None = None,
+        card_kwargs: Union[Dict[str, Any], None] = None,
         **push_to_hub_kwargs,
-    ) -> str | None:
+    ) -> Union[str, None]:
         """
         Save object in local directory.
 
@@ -86,16 +86,16 @@ class HubMixin:
     @classmethod
     @validate_hf_hub_args
     def from_pretrained(
-        cls: builtins.type[T],
-        pretrained_name_or_path: str | Path,
+        cls: Type[T],
+        pretrained_name_or_path: Union[str, Path],
         *,
         force_download: bool = False,
-        resume_download: bool | None = None,
-        proxies: dict | None = None,
-        token: str | bool | None = None,
-        cache_dir: str | Path | None = None,
+        resume_download: Union[bool, None] = None,
+        proxies: Union[dict, None] = None,
+        token: Union[str, bool, None] = None,
+        cache_dir: Union[str, Path, None] = None,
         local_files_only: bool = False,
-        revision: str | None = None,
+        revision: Union[str, None] = None,
         **kwargs,
     ) -> T:
         """
@@ -131,15 +131,15 @@ class HubMixin:
         self,
         repo_id: str,
         *,
-        commit_message: str | None = None,
-        private: bool | None = None,
-        token: str | None = None,
-        branch: str | None = None,
-        create_pr: bool | None = None,
-        allow_patterns: list[str] | str | None = None,
-        ignore_patterns: list[str] | str | None = None,
-        delete_patterns: list[str] | str | None = None,
-        card_kwargs: dict[str, Any] | None = None,
+        commit_message: Union[str, None] = None,
+        private: Union[bool, None] = None,
+        token: Union[str, None] = None,
+        branch: Union[str, None] = None,
+        create_pr: Union[bool, None] = None,
+        allow_patterns: Union[List[str], str, None] = None,
+        ignore_patterns: Union[List[str], str, None] = None,
+        delete_patterns: Union[List[str], str, None] = None,
+        card_kwargs: Union[Dict[str, Any], None] = None,
     ) -> str:
         """
         Upload model checkpoint to the Hub.

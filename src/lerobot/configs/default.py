@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
+from typing import Optional, List
 
 from lerobot import (
     policies,  # noqa: F401
@@ -31,10 +32,10 @@ class DatasetConfig:
     # datasets are provided.
     repo_id: str
     # Root directory where the dataset will be stored (e.g. 'dataset/path').
-    root: str | None = None
-    episodes: list[int] | None = None
+    root: Optional[str] = None
+    episodes: Optional[List[int]] = None
     image_transforms: ImageTransformsConfig = field(default_factory=ImageTransformsConfig)
-    revision: str | None = None
+    revision: Optional[str] = None
     use_imagenet_stats: bool = True
     video_backend: str = field(default_factory=get_safe_default_codec)
 
@@ -45,10 +46,10 @@ class WandBConfig:
     # Set to true to disable saving an artifact despite training.save_checkpoint=True
     disable_artifact: bool = False
     project: str = "lerobot"
-    entity: str | None = None
-    notes: str | None = None
-    run_id: str | None = None
-    mode: str | None = None  # Allowed values: 'online', 'offline' 'disabled'. Defaults to 'online'
+    entity: Optional[str] = None
+    notes: Optional[str] = None
+    run_id: Optional[str] = None
+    mode: Optional[str] = None  # Allowed values: 'online', 'offline' 'disabled'. Defaults to 'online'
 
 
 @dataclass

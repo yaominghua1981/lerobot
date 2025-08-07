@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
+from typing import List, Dict, Optional
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -57,14 +58,14 @@ class ActorLearnerConfig:
 
 @dataclass
 class CriticNetworkConfig:
-    hidden_dims: list[int] = field(default_factory=lambda: [256, 256])
+    hidden_dims: List[int] = field(default_factory=lambda: [256, 256])
     activate_final: bool = True
-    final_activation: str | None = None
+    final_activation: Optional[str] = None
 
 
 @dataclass
 class ActorNetworkConfig:
-    hidden_dims: list[int] = field(default_factory=lambda: [256, 256])
+    hidden_dims: List[int] = field(default_factory=lambda: [256, 256])
     activate_final: bool = True
 
 
@@ -91,7 +92,7 @@ class SACConfig(PreTrainedConfig):
     """
 
     # Mapping of feature types to normalization modes
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.MEAN_STD,
             "STATE": NormalizationMode.MIN_MAX,
@@ -101,7 +102,7 @@ class SACConfig(PreTrainedConfig):
     )
 
     # Statistics for normalizing different types of inputs
-    dataset_stats: dict[str, dict[str, list[float]]] | None = field(
+    dataset_stats: Optional[Dict[str, Dict[str, List[float]]]] = field(
         default_factory=lambda: {
             OBS_IMAGE: {
                 "mean": [0.485, 0.456, 0.406],
@@ -124,7 +125,7 @@ class SACConfig(PreTrainedConfig):
     # Device to store the model on
     storage_device: str = "cpu"
     # Name of the vision encoder model (Set to "helper2424/resnet10" for hil serl resnet10)
-    vision_encoder_name: str | None = None
+    vision_encoder_name: Optional[str] = None
     # Whether to freeze the vision encoder during training
     freeze_vision_encoder: bool = True
     # Hidden dimension size for the image encoder
@@ -132,7 +133,7 @@ class SACConfig(PreTrainedConfig):
     # Whether to use a shared encoder for actor and critic
     shared_encoder: bool = True
     # Number of discrete actions, eg for gripper actions
-    num_discrete_actions: int | None = None
+    num_discrete_actions: Optional[int] = None
     # Dimension of the image embedding pooling
     image_embedding_pooling_dim: int = 8
 
@@ -160,7 +161,7 @@ class SACConfig(PreTrainedConfig):
     # Number of critics in the ensemble
     num_critics: int = 2
     # Number of subsampled critics for training
-    num_subsample_critics: int | None = None
+    num_subsample_critics: Optional[int] = None
     # Learning rate for the critic network
     critic_lr: float = 3e-4
     # Learning rate for the actor network
@@ -176,7 +177,7 @@ class SACConfig(PreTrainedConfig):
     # Dimension of the latent space
     latent_dim: int = 256
     # Target entropy for the SAC algorithm
-    target_entropy: float | None = None
+    target_entropy: Optional[float] = None
     # Whether to use backup entropy for the SAC algorithm
     use_backup_entropy: bool = True
     # Gradient clipping norm for the SAC algorithm
@@ -229,15 +230,15 @@ class SACConfig(PreTrainedConfig):
             raise ValueError("You must provide 'action' in the output features")
 
     @property
-    def image_features(self) -> list[str]:
+    def image_features(self) -> List[str]:
         return [key for key in self.input_features if is_image_feature(key)]
 
     @property
-    def observation_delta_indices(self) -> list:
+    def observation_delta_indices(self) -> List:
         return None
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return None  # SAC typically predicts one action at a time
 
     @property

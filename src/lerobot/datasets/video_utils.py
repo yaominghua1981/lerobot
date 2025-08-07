@@ -20,13 +20,13 @@ import shutil
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Union, List, Dict
 
 import av
 import pyarrow as pa
 import torch
 import torchvision
-from datasets.features.features import register_feature
+# from datasets.features.features import register_feature
 from PIL import Image
 
 
@@ -41,10 +41,10 @@ def get_safe_default_codec():
 
 
 def decode_video_frames(
-    video_path: Path | str,
-    timestamps: list[float],
+    video_path: Union[Path, str],
+    timestamps: List[float],
     tolerance_s: float,
-    backend: str | None = None,
+    backend: Union[str, None] = None,
 ) -> torch.Tensor:
     """
     Decodes video frames using the specified backend.
@@ -71,8 +71,8 @@ def decode_video_frames(
 
 
 def decode_video_frames_torchvision(
-    video_path: Path | str,
-    timestamps: list[float],
+    video_path: Union[Path, str],
+    timestamps: List[float],
     tolerance_s: float,
     backend: str = "pyav",
     log_loaded_timestamps: bool = False,
@@ -169,8 +169,8 @@ def decode_video_frames_torchvision(
 
 
 def decode_video_frames_torchcodec(
-    video_path: Path | str,
-    timestamps: list[float],
+    video_path: Union[Path, str],
+    timestamps: List[float],
     tolerance_s: float,
     device: str = "cpu",
     log_loaded_timestamps: bool = False,
@@ -244,15 +244,15 @@ def decode_video_frames_torchcodec(
 
 
 def encode_video_frames(
-    imgs_dir: Path | str,
-    video_path: Path | str,
+    imgs_dir: Union[Path, str],
+    video_path: Union[Path, str],
     fps: int,
     vcodec: str = "libsvtav1",
     pix_fmt: str = "yuv420p",
-    g: int | None = 2,
-    crf: int | None = 30,
+    g: Union[int, None] = 2,
+    crf: Union[int, None] = 30,
     fast_decode: int = 0,
-    log_level: int | None = av.logging.ERROR,
+    log_level: Union[int, None] = av.logging.ERROR,
     overwrite: bool = False,
 ) -> None:
     """More info on ffmpeg arguments tuning on `benchmark/video/README.md`"""
@@ -353,17 +353,17 @@ class VideoFrame:
         return self.pa_type
 
 
-with warnings.catch_warnings():
-    warnings.filterwarnings(
-        "ignore",
-        "'register_feature' is experimental and might be subject to breaking changes in the future.",
-        category=UserWarning,
-    )
-    # to make VideoFrame available in HuggingFace `datasets`
-    register_feature(VideoFrame, "VideoFrame")
+# with warnings.catch_warnings():
+#     warnings.filterwarnings(
+#         "ignore",
+#         "'register_feature' is experimental and might be subject to breaking changes in the future.",
+#         category=UserWarning,
+#     )
+#     # to make VideoFrame available in HuggingFace `datasets`
+#     register_feature(VideoFrame, "VideoFrame")
 
 
-def get_audio_info(video_path: Path | str) -> dict:
+def get_audio_info(video_path: Union[Path, str]) -> dict:
     # Set logging level
     logging.getLogger("libav").setLevel(av.logging.ERROR)
 
@@ -395,7 +395,7 @@ def get_audio_info(video_path: Path | str) -> dict:
     return audio_info
 
 
-def get_video_info(video_path: Path | str) -> dict:
+def get_video_info(video_path: Union[Path, str]) -> dict:
     # Set logging level
     logging.getLogger("libav").setLevel(av.logging.ERROR)
 

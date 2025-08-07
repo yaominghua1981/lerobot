@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import warnings
-from typing import Any
+from typing import Any, Dict
 
 import einops
 import gymnasium as gym
@@ -27,7 +27,7 @@ from lerobot.envs.configs import EnvConfig
 from lerobot.utils.utils import get_channel_first_image_shape
 
 
-def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Tensor]:
+def preprocess_observation(observations: Dict[str, np.ndarray]) -> Dict[str, Tensor]:
     # TODO(aliberts, rcadene): refactor this to use features from the environment (no hardcoding)
     """Convert environment observation to LeRobot format observation.
     Args:
@@ -81,7 +81,7 @@ def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Ten
     return return_observations
 
 
-def env_to_policy_features(env_cfg: EnvConfig) -> dict[str, PolicyFeature]:
+def env_to_policy_features(env_cfg: EnvConfig) -> Dict[str, PolicyFeature]:
     # TODO(aliberts, rcadene): remove this hardcoding of keys and just use the nested keys as is
     # (need to also refactor preprocess_observation and externalize normalization from policies)
     policy_features = {}
@@ -124,7 +124,7 @@ def check_env_attributes_and_types(env: gym.vector.VectorEnv) -> None:
             )
 
 
-def add_envs_task(env: gym.vector.VectorEnv, observation: dict[str, Any]) -> dict[str, Any]:
+def add_envs_task(env: gym.vector.VectorEnv, observation: Dict[str, Any]) -> Dict[str, Any]:
     """Adds task feature to the observation dict with respect to the first environment attribute."""
     if hasattr(env.envs[0], "task_description"):
         observation["task"] = env.call("task_description")

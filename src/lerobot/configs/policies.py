@@ -19,7 +19,7 @@ import os
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, Union, Dict, List, Type
 
 import draccus
 from huggingface_hub import hf_hub_download
@@ -52,25 +52,25 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
     """
 
     n_obs_steps: int = 1
-    normalization_mapping: dict[str, NormalizationMode] = field(default_factory=dict)
+    normalization_mapping: Dict[str, NormalizationMode] = field(default_factory=dict)
 
-    input_features: dict[str, PolicyFeature] = field(default_factory=dict)
-    output_features: dict[str, PolicyFeature] = field(default_factory=dict)
+    input_features: Dict[str, PolicyFeature] = field(default_factory=dict)
+    output_features: Dict[str, PolicyFeature] = field(default_factory=dict)
 
-    device: str | None = None  # cuda | cpu | mp
+    device: Union[str, None] = None  # cuda | cpu | mp
     # `use_amp` determines whether to use Automatic Mixed Precision (AMP) for training and evaluation. With AMP,
     # automatic gradient scaling is used.
     use_amp: bool = False
 
     push_to_hub: bool = True
-    repo_id: str | None = None
+    repo_id: Union[str, None] = None
 
     # Upload on private repository on the Hugging Face hub.
-    private: bool | None = None
+    private: Union[bool, None] = None
     # Add tags to your policy on the hub.
-    tags: list[str] | None = None
+    tags: Union[List[str], None] = None
     # Add tags to your policy on the hub.
-    license: str | None = None
+    license: Union[str, None] = None
 
     def __post_init__(self):
         self.pretrained_path = None
@@ -103,17 +103,17 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
 
     @property
     @abc.abstractmethod
-    def observation_delta_indices(self) -> list | None:
+    def observation_delta_indices(self) -> Union[List, None]:
         raise NotImplementedError
 
     @property
     @abc.abstractmethod
-    def action_delta_indices(self) -> list | None:
+    def action_delta_indices(self) -> Union[List, None]:
         raise NotImplementedError
 
     @property
     @abc.abstractmethod
-    def reward_delta_indices(self) -> list | None:
+    def reward_delta_indices(self) -> Union[List, None]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -121,7 +121,7 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_scheduler_preset(self) -> LRSchedulerConfig | None:
+    def get_scheduler_preset(self) -> Union[LRSchedulerConfig, None]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -129,25 +129,25 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
         raise NotImplementedError
 
     @property
-    def robot_state_feature(self) -> PolicyFeature | None:
+    def robot_state_feature(self) -> Union[PolicyFeature, None]:
         for _, ft in self.input_features.items():
             if ft.type is FeatureType.STATE:
                 return ft
         return None
 
     @property
-    def env_state_feature(self) -> PolicyFeature | None:
+    def env_state_feature(self) -> Union[PolicyFeature, None]:
         for _, ft in self.input_features.items():
             if ft.type is FeatureType.ENV:
                 return ft
         return None
 
     @property
-    def image_features(self) -> dict[str, PolicyFeature]:
+    def image_features(self) -> Dict[str, PolicyFeature]:
         return {key: ft for key, ft in self.input_features.items() if ft.type is FeatureType.VISUAL}
 
     @property
-    def action_feature(self) -> PolicyFeature | None:
+    def action_feature(self) -> Union[PolicyFeature, None]:
         for _, ft in self.output_features.items():
             if ft.type is FeatureType.ACTION:
                 return ft
@@ -159,20 +159,20 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
 
     @classmethod
     def from_pretrained(
-        cls: builtins.type[T],
-        pretrained_name_or_path: str | Path,
+        cls: Type[T],
+        pretrained_name_or_path: Union[str, Path],
         *,
         force_download: bool = False,
-        resume_download: bool = None,
-        proxies: dict | None = None,
-        token: str | bool | None = None,
-        cache_dir: str | Path | None = None,
+        resume_download: Union[bool, None] = None,
+        proxies: Union[dict, None] = None,
+        token: Union[str, bool, None] = None,
+        cache_dir: Union[str, Path, None] = None,
         local_files_only: bool = False,
-        revision: str | None = None,
+        revision: Union[str, None] = None,
         **policy_kwargs,
     ) -> T:
         model_id = str(pretrained_name_or_path)
-        config_file: str | None = None
+        config_file: Union[str, None] = None
         if Path(model_id).is_dir():
             if CONFIG_NAME in os.listdir(model_id):
                 config_file = os.path.join(model_id, CONFIG_NAME)

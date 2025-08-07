@@ -16,15 +16,16 @@
 import numpy as np
 import torch
 from torch import Tensor, nn
+from typing import Dict, Optional
 
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 
 
 def create_stats_buffers(
-    features: dict[str, PolicyFeature],
-    norm_map: dict[str, NormalizationMode],
-    stats: dict[str, dict[str, Tensor]] | None = None,
-) -> dict[str, dict[str, nn.ParameterDict]]:
+    features: Dict[str, PolicyFeature],
+    norm_map: Dict[str, NormalizationMode],
+    stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
+) -> Dict[str, Dict[str, nn.ParameterDict]]:
     """
     Create buffers per modality (e.g. "observation.image", "action") containing their mean, std, min, max
     statistics.
@@ -118,9 +119,9 @@ class Normalize(nn.Module):
 
     def __init__(
         self,
-        features: dict[str, PolicyFeature],
-        norm_map: dict[str, NormalizationMode],
-        stats: dict[str, dict[str, Tensor]] | None = None,
+        features: Dict[str, PolicyFeature],
+        norm_map: Dict[str, NormalizationMode],
+        stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
     ):
         """
         Args:
@@ -150,7 +151,7 @@ class Normalize(nn.Module):
 
     # TODO(rcadene): should we remove torch.no_grad?
     @torch.no_grad()
-    def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+    def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
         # TODO: Remove this shallow copy
         batch = dict(batch)  # shallow copy avoids mutating the input batch
         for key, ft in self.features.items():
@@ -192,9 +193,9 @@ class Unnormalize(nn.Module):
 
     def __init__(
         self,
-        features: dict[str, PolicyFeature],
-        norm_map: dict[str, NormalizationMode],
-        stats: dict[str, dict[str, Tensor]] | None = None,
+        features: Dict[str, PolicyFeature],
+        norm_map: Dict[str, NormalizationMode],
+        stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
     ):
         """
         Args:
@@ -225,7 +226,7 @@ class Unnormalize(nn.Module):
 
     # TODO(rcadene): should we remove torch.no_grad?
     @torch.no_grad()
-    def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+    def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
         batch = dict(batch)  # shallow copy avoids mutating the input batch
         for key, ft in self.features.items():
             if key not in batch:
@@ -259,9 +260,9 @@ class Unnormalize(nn.Module):
 #       and remove the `Normalize` and `Unnormalize` classes.
 def _initialize_stats_buffers(
     module: nn.Module,
-    features: dict[str, PolicyFeature],
-    norm_map: dict[str, NormalizationMode],
-    stats: dict[str, dict[str, Tensor]] | None = None,
+    features: Dict[str, PolicyFeature],
+    norm_map: Dict[str, NormalizationMode],
+    stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
 ) -> None:
     """Register statistics buffers (mean/std or min/max) on the given *module*.
 
@@ -327,9 +328,9 @@ class NormalizeBuffer(nn.Module):
 
     def __init__(
         self,
-        features: dict[str, PolicyFeature],
-        norm_map: dict[str, NormalizationMode],
-        stats: dict[str, dict[str, Tensor]] | None = None,
+        features: Dict[str, PolicyFeature],
+        norm_map: Dict[str, NormalizationMode],
+        stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
     ):
         super().__init__()
         self.features = features
@@ -337,7 +338,7 @@ class NormalizeBuffer(nn.Module):
 
         _initialize_stats_buffers(self, features, norm_map, stats)
 
-    def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+    def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
         batch = dict(batch)
         for key, ft in self.features.items():
             if key not in batch:
@@ -376,9 +377,9 @@ class UnnormalizeBuffer(nn.Module):
 
     def __init__(
         self,
-        features: dict[str, PolicyFeature],
-        norm_map: dict[str, NormalizationMode],
-        stats: dict[str, dict[str, Tensor]] | None = None,
+        features: Dict[str, PolicyFeature],
+        norm_map: Dict[str, NormalizationMode],
+        stats: Optional[Dict[str, Dict[str, Tensor]]] = None,
     ):
         super().__init__()
         self.features = features
@@ -386,7 +387,7 @@ class UnnormalizeBuffer(nn.Module):
 
         _initialize_stats_buffers(self, features, norm_map, stats)
 
-    def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+    def forward(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
         # batch = dict(batch)
         for key, ft in self.features.items():
             if key not in batch:

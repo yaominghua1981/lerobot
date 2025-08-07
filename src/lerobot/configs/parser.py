@@ -19,6 +19,7 @@ from argparse import ArgumentError
 from collections.abc import Sequence
 from functools import wraps
 from pathlib import Path
+from typing import List, Optional, Union, Sequence as TypingSequence
 
 import draccus
 
@@ -28,7 +29,7 @@ PATH_KEY = "path"
 PLUGIN_DISCOVERY_SUFFIX = "discover_packages_path"
 
 
-def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> list[str] | None:
+def get_cli_overrides(field_name: str, args: Optional[TypingSequence[str]] = None) -> Optional[List[str]]:
     """Parses arguments from cli at a given nested attribute level.
 
     For example, supposing the main script was called with:
@@ -50,7 +51,7 @@ def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> lis
     return attr_level_args
 
 
-def parse_arg(arg_name: str, args: Sequence[str] | None = None) -> str | None:
+def parse_arg(arg_name: str, args: Optional[TypingSequence[str]] = None) -> Optional[str]:
     if args is None:
         args = sys.argv[1:]
     prefix = f"--{arg_name}="
@@ -60,7 +61,7 @@ def parse_arg(arg_name: str, args: Sequence[str] | None = None) -> str | None:
     return None
 
 
-def parse_plugin_args(plugin_arg_suffix: str, args: Sequence[str]) -> dict:
+def parse_plugin_args(plugin_arg_suffix: str, args: TypingSequence[str]) -> dict:
     """Parse plugin-related arguments from command-line arguments.
 
     This function extracts arguments from command-line arguments that match a specified suffix pattern.
@@ -139,19 +140,19 @@ def load_plugin(plugin_path: str) -> None:
         ) from e
 
 
-def get_path_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
+def get_path_arg(field_name: str, args: Optional[TypingSequence[str]] = None) -> Optional[str]:
     return parse_arg(f"{field_name}.{PATH_KEY}", args)
 
 
-def get_type_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
+def get_type_arg(field_name: str, args: Optional[TypingSequence[str]] = None) -> Optional[str]:
     return parse_arg(f"{field_name}.{draccus.CHOICE_TYPE_KEY}", args)
 
 
-def filter_arg(field_to_filter: str, args: Sequence[str] | None = None) -> list[str]:
+def filter_arg(field_to_filter: str, args: Optional[TypingSequence[str]] = None) -> List[str]:
     return [arg for arg in args if not arg.startswith(f"--{field_to_filter}=")]
 
 
-def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | None = None) -> list[str]:
+def filter_path_args(fields_to_filter: Union[str, List[str]], args: Optional[TypingSequence[str]] = None) -> List[str]:
     """
     Filters command-line arguments related to fields with specific path arguments.
 
@@ -184,7 +185,7 @@ def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | No
     return filtered_args
 
 
-def wrap(config_path: Path | None = None):
+def wrap(config_path: Optional[Path] = None):
     """
     HACK: Similar to draccus.wrap but does three additional things:
         - Will remove '.path' arguments from CLI in order to process them later on.

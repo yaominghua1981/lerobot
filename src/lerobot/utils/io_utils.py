@@ -16,11 +16,11 @@
 import json
 import warnings
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, Union, List, Dict, Tuple
 
 import imageio
 
-JsonLike = str | int | float | bool | None | list["JsonLike"] | dict[str, "JsonLike"] | tuple["JsonLike", ...]
+JsonLike = Union[str, int, float, bool, None, List["JsonLike"], Dict[str, "JsonLike"], Tuple["JsonLike", ...]]
 T = TypeVar("T", bound=JsonLike)
 
 

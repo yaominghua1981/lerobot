@@ -16,6 +16,7 @@ import datetime as dt
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional, List, Dict, Union, Type
 
 import draccus
 from huggingface_hub import hf_hub_download
@@ -35,12 +36,12 @@ TRAIN_CONFIG_NAME = "train_config.json"
 @dataclass
 class TrainPipelineConfig(HubMixin):
     dataset: DatasetConfig
-    env: envs.EnvConfig | None = None
-    policy: PreTrainedConfig | None = None
+    env: Optional[envs.EnvConfig] = None
+    policy: Optional[PreTrainedConfig] = None
     # Set `dir` to where you would like to save all of the run outputs. If you run another training session
     # with the same value for `dir` its contents will be overwritten unless you set `resume` to true.
-    output_dir: Path | None = None
-    job_name: str | None = None
+    output_dir: Optional[Path] = None
+    job_name: Optional[str] = None
     # Set `resume` to true to resume a previous run. In order for this to work, you will need to make sure
     # `dir` is the directory of an existing run with at least one checkpoint in it.
     # Note that when resuming a run, the default behavior is to use the configuration from the checkpoint,
@@ -48,7 +49,7 @@ class TrainPipelineConfig(HubMixin):
     resume: bool = False
     # `seed` is used for training (eg: model initialization, dataset shuffling)
     # AND for the evaluation environments.
-    seed: int | None = 1000
+    seed: Optional[int] = 1000
     # Number of workers for the dataloader.
     num_workers: int = 4
     batch_size: int = 8
@@ -59,8 +60,8 @@ class TrainPipelineConfig(HubMixin):
     # Checkpoint is saved every `save_freq` training iterations and after the last training step.
     save_freq: int = 20_000
     use_policy_training_preset: bool = True
-    optimizer: OptimizerConfig | None = None
-    scheduler: LRSchedulerConfig | None = None
+    optimizer: Optional[OptimizerConfig] = None
+    scheduler: Optional[LRSchedulerConfig] = None
     eval: EvalConfig = field(default_factory=EvalConfig)
     wandb: WandBConfig = field(default_factory=WandBConfig)
 
@@ -122,11 +123,11 @@ class TrainPipelineConfig(HubMixin):
             )
 
     @classmethod
-    def __get_path_fields__(cls) -> list[str]:
+    def __get_path_fields__(cls) -> List[str]:
         """This enables the parser to load config from the policy using `--policy.path=local/dir`"""
         return ["policy"]
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict:
         return draccus.encode(self)
 
     def _save_pretrained(self, save_directory: Path) -> None:
@@ -135,20 +136,20 @@ class TrainPipelineConfig(HubMixin):
 
     @classmethod
     def from_pretrained(
-        cls: builtins.type["TrainPipelineConfig"],
-        pretrained_name_or_path: str | Path,
+        cls: Type["TrainPipelineConfig"],
+        pretrained_name_or_path: Union[str, Path],
         *,
         force_download: bool = False,
-        resume_download: bool = None,
-        proxies: dict | None = None,
-        token: str | bool | None = None,
-        cache_dir: str | Path | None = None,
+        resume_download: Optional[bool] = None,
+        proxies: Optional[Dict] = None,
+        token: Optional[Union[str, bool]] = None,
+        cache_dir: Optional[Union[str, Path]] = None,
         local_files_only: bool = False,
-        revision: str | None = None,
+        revision: Optional[str] = None,
         **kwargs,
     ) -> "TrainPipelineConfig":
         model_id = str(pretrained_name_or_path)
-        config_file: str | None = None
+        config_file: Optional[str] = None
         if Path(model_id).is_dir():
             if TRAIN_CONFIG_NAME in os.listdir(model_id):
                 config_file = os.path.join(model_id, TRAIN_CONFIG_NAME)
@@ -179,6 +180,6 @@ class TrainPipelineConfig(HubMixin):
             return draccus.parse(cls, config_file, args=cli_args)
 
 
-@dataclass(kw_only=True)
+@dataclass
 class TrainRLServerPipelineConfig(TrainPipelineConfig):
-    dataset: DatasetConfig | None = None  # NOTE: In RL, we don't need an offline dataset
+    dataset: Optional[DatasetConfig] = None  # NOTE: In RL, we don't need an offline dataset

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+from typing import Union, Dict, Tuple
 from pprint import pformat
 
 from lerobot.robots import RobotConfig
@@ -70,8 +71,8 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
 
 
 def ensure_safe_goal_position(
-    goal_present_pos: dict[str, tuple[float, float]], max_relative_target: float | dict[float]
-) -> dict[str, float]:
+    goal_present_pos: Dict[str, Tuple[float, float]], max_relative_target: Union[float, Dict[str, float]]
+) -> Dict[str, float]:
     """Caps relative action target magnitude for safety."""
 
     if isinstance(max_relative_target, float):

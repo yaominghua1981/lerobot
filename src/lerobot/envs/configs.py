@@ -14,6 +14,7 @@
 
 import abc
 from dataclasses import dataclass, field
+from typing import Union, Dict, Tuple, Any
 from typing import Any
 
 import draccus
@@ -26,10 +27,10 @@ from lerobot.teleoperators.config import TeleoperatorConfig
 
 @dataclass
 class EnvConfig(draccus.ChoiceRegistry, abc.ABC):
-    task: str | None = None
+    task: Union[str, None] = None
     fps: int = 30
-    features: dict[str, PolicyFeature] = field(default_factory=dict)
-    features_map: dict[str, str] = field(default_factory=dict)
+    features: Dict[str, PolicyFeature] = field(default_factory=dict)
+    features_map: Dict[str, str] = field(default_factory=dict)
 
     @property
     def type(self) -> str:
@@ -49,12 +50,12 @@ class AlohaEnv(EnvConfig):
     episode_length: int = 400
     obs_type: str = "pixels_agent_pos"
     render_mode: str = "rgb_array"
-    features: dict[str, PolicyFeature] = field(
+    features: Dict[str, PolicyFeature] = field(
         default_factory=lambda: {
             "action": PolicyFeature(type=FeatureType.ACTION, shape=(14,)),
         }
     )
-    features_map: dict[str, str] = field(
+    features_map: Dict[str, str] = field(
         default_factory=lambda: {
             "action": ACTION,
             "agent_pos": OBS_STATE,
@@ -89,13 +90,13 @@ class PushtEnv(EnvConfig):
     render_mode: str = "rgb_array"
     visualization_width: int = 384
     visualization_height: int = 384
-    features: dict[str, PolicyFeature] = field(
+    features: Dict[str, PolicyFeature] = field(
         default_factory=lambda: {
             "action": PolicyFeature(type=FeatureType.ACTION, shape=(2,)),
             "agent_pos": PolicyFeature(type=FeatureType.STATE, shape=(2,)),
         }
     )
-    features_map: dict[str, str] = field(
+    features_map: Dict[str, str] = field(
         default_factory=lambda: {
             "action": ACTION,
             "agent_pos": OBS_STATE,
@@ -131,13 +132,13 @@ class XarmEnv(EnvConfig):
     render_mode: str = "rgb_array"
     visualization_width: int = 384
     visualization_height: int = 384
-    features: dict[str, PolicyFeature] = field(
+    features: Dict[str, PolicyFeature] = field(
         default_factory=lambda: {
             "action": PolicyFeature(type=FeatureType.ACTION, shape=(4,)),
             "pixels": PolicyFeature(type=FeatureType.VISUAL, shape=(84, 84, 3)),
         }
     )
-    features_map: dict[str, str] = field(
+    features_map: Dict[str, str] = field(
         default_factory=lambda: {
             "action": ACTION,
             "agent_pos": OBS_STATE,
@@ -179,13 +180,13 @@ class EnvTransformConfig:
     add_joint_velocity_to_observation: bool = False
     add_current_to_observation: bool = False
     add_ee_pose_to_observation: bool = False
-    crop_params_dict: dict[str, tuple[int, int, int, int]] | None = None
-    resize_size: tuple[int, int] | None = None
+    crop_params_dict: Union[Dict[str, Tuple[int, int, int, int]], None] = None
+    resize_size: Union[Tuple[int, int], None] = None
     control_time_s: float = 20.0
-    fixed_reset_joint_positions: Any | None = None
+    fixed_reset_joint_positions: Union[Any, None] = None
     reset_time_s: float = 5.0
     use_gripper: bool = True
-    gripper_quantization_threshold: float | None = 0.8
+    gripper_quantization_threshold: Union[float, None] = 0.8
     gripper_penalty: float = 0.0
     gripper_penalty_in_reward: bool = False
 
@@ -195,21 +196,21 @@ class EnvTransformConfig:
 class HILSerlRobotEnvConfig(EnvConfig):
     """Configuration for the HILSerlRobotEnv environment."""
 
-    robot: RobotConfig | None = None
-    teleop: TeleoperatorConfig | None = None
-    wrapper: EnvTransformConfig | None = None
+    robot: Union[RobotConfig, None] = None
+    teleop: Union[TeleoperatorConfig, None] = None
+    wrapper: Union[EnvTransformConfig, None] = None
     fps: int = 10
     name: str = "real_robot"
-    mode: str = None  # Either "record", "replay", None
-    repo_id: str | None = None
-    dataset_root: str | None = None
+    mode: Union[str, None] = None  # Either "record", "replay", None
+    repo_id: Union[str, None] = None
+    dataset_root: Union[str, None] = None
     task: str = ""
     num_episodes: int = 10  # only for record mode
     episode: int = 0
     device: str = "cuda"
     push_to_hub: bool = True
-    pretrained_policy_name_or_path: str | None = None
-    reward_classifier_pretrained_path: str | None = None
+    pretrained_policy_name_or_path: Union[str, None] = None
+    reward_classifier_pretrained_path: Union[str, None] = None
     # For the reward classifier, to record more positive examples after a success
     number_of_steps_after_success: int = 0
 
@@ -233,14 +234,14 @@ class HILEnvConfig(EnvConfig):
     fps: int = 100
     episode_length: int = 100
     video_record: VideoRecordConfig = field(default_factory=VideoRecordConfig)
-    features: dict[str, PolicyFeature] = field(
+    features: Dict[str, PolicyFeature] = field(
         default_factory=lambda: {
             "action": PolicyFeature(type=FeatureType.ACTION, shape=(4,)),
             "observation.image": PolicyFeature(type=FeatureType.VISUAL, shape=(3, 128, 128)),
             "observation.state": PolicyFeature(type=FeatureType.STATE, shape=(18,)),
         }
     )
-    features_map: dict[str, str] = field(
+    features_map: Dict[str, str] = field(
         default_factory=lambda: {
             "action": ACTION,
             "observation.image": OBS_IMAGE,
@@ -248,18 +249,18 @@ class HILEnvConfig(EnvConfig):
         }
     )
     ################# args from hilserlrobotenv
-    reward_classifier_pretrained_path: str | None = None
-    robot_config: RobotConfig | None = None
-    teleop_config: TeleoperatorConfig | None = None
-    wrapper: EnvTransformConfig | None = None
-    mode: str = None  # Either "record", "replay", None
-    repo_id: str | None = None
-    dataset_root: str | None = None
+    reward_classifier_pretrained_path: Union[str, None] = None
+    robot_config: Union[RobotConfig, None] = None
+    teleop_config: Union[TeleoperatorConfig, None] = None
+    wrapper: Union[EnvTransformConfig, None] = None
+    mode: Union[str, None] = None  # Either "record", "replay", None
+    repo_id: Union[str, None] = None
+    dataset_root: Union[str, None] = None
     num_episodes: int = 10  # only for record mode
     episode: int = 0
     device: str = "cuda"
     push_to_hub: bool = True
-    pretrained_policy_name_or_path: str | None = None
+    pretrained_policy_name_or_path: Union[str, None] = None
     # For the reward classifier, to record more positive examples after a success
     number_of_steps_after_success: int = 0
     ############################

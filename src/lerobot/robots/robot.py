@@ -14,6 +14,7 @@
 
 import abc
 import builtins
+from typing import Union, Dict, Type
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,7 @@ class Robot(abc.ABC):
     """
 
     # Set these in ALL subclasses
-    config_class: builtins.type[RobotConfig]
+    config_class: Type[RobotConfig]
     name: str
 
     def __init__(self, config: RobotConfig):
@@ -51,7 +52,7 @@ class Robot(abc.ABC):
         )
         self.calibration_dir.mkdir(parents=True, exist_ok=True)
         self.calibration_fpath = self.calibration_dir / f"{self.id}.json"
-        self.calibration: dict[str, MotorCalibration] = {}
+        self.calibration: Dict[str, MotorCalibration] = {}
         if self.calibration_fpath.is_file():
             self._load_calibration()
 
@@ -122,7 +123,7 @@ class Robot(abc.ABC):
         """
         pass
 
-    def _load_calibration(self, fpath: Path | None = None) -> None:
+    def _load_calibration(self, fpath: Union[Path, None] = None) -> None:
         """
         Helper to load calibration data from the specified file.
 
@@ -133,7 +134,7 @@ class Robot(abc.ABC):
         with open(fpath) as f, draccus.config_type("json"):
             self.calibration = draccus.load(dict[str, MotorCalibration], f)
 
-    def _save_calibration(self, fpath: Path | None = None) -> None:
+    def _save_calibration(self, fpath: Union[Path, None] = None) -> None:
         """
         Helper to save calibration data to the specified file.
 
@@ -153,7 +154,7 @@ class Robot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_observation(self) -> dict[str, Any]:
+    def get_observation(self) -> Dict[str, Any]:
         """
         Retrieve the current observation from the robot.
 
@@ -165,7 +166,7 @@ class Robot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
+    def send_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
         """
         Send an action command to the robot.
 

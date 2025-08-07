@@ -16,14 +16,43 @@
 import collections
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, List, Dict, Optional, Union, Sequence as TypingSequence
 
 import torch
-from torchvision.transforms import v2
-from torchvision.transforms.v2 import (
-    Transform,
-    functional as F,  # noqa: N812
-)
+import torchvision
+
+# Compatibility layer for torchvision v2 transforms
+try:
+    from torchvision.transforms import v2
+    from torchvision.transforms.v2 import (
+        Transform,
+        functional as F,  # noqa: N812
+    )
+    TORCHVISION_V2_AVAILABLE = True
+except ImportError:
+    # Fallback to v1 transforms for older torchvision versions
+    from torchvision.transforms import (
+        Compose,
+        ColorJitter,
+        RandomApply,
+        RandomChoice,
+    )
+    from torchvision.transforms import functional as F
+    TORCHVISION_V2_AVAILABLE = False
+    
+    # Create a simple Transform base class for compatibility
+    class Transform:
+        def __init__(self):
+            pass
+        
+        def __call__(self, *args, **kwargs):
+            return self.forward(*args, **kwargs)
+        
+        def forward(self, *args, **kwargs):
+            raise NotImplementedError
+        
+        def extra_repr(self) -> str:
+            return ""
 
 
 class RandomSubsetApply(Transform):
@@ -41,9 +70,9 @@ class RandomSubsetApply(Transform):
 
     def __init__(
         self,
-        transforms: Sequence[Callable],
-        p: list[float] | None = None,
-        n_subset: int | None = None,
+        transforms: TypingSequence[Callable],
+        p: Optional[List[float]] = None,
+        n_subset: Optional[int] = None,
         random_order: bool = False,
     ) -> None:
         super().__init__()
@@ -115,7 +144,7 @@ class SharpnessJitter(Transform):
             [min, max]. Should be non negative numbers.
     """
 
-    def __init__(self, sharpness: float | Sequence[float]) -> None:
+    def __init__(self, sharpness: Union[float, TypingSequence[float]]) -> None:
         super().__init__()
         self.sharpness = self._check_input(sharpness)
 
@@ -135,11 +164,11 @@ class SharpnessJitter(Transform):
 
         return float(sharpness[0]), float(sharpness[1])
 
-    def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
+    def make_params(self, flat_inputs: List[Any]) -> Dict[str, Any]:
         sharpness_factor = torch.empty(1).uniform_(self.sharpness[0], self.sharpness[1]).item()
         return {"sharpness_factor": sharpness_factor}
 
-    def transform(self, inpt: Any, params: dict[str, Any]) -> Any:
+    def transform(self, inpt: Any, params: Dict[str, Any]) -> Any:
         sharpness_factor = params["sharpness_factor"]
         return self._call_kernel(F.adjust_sharpness, inpt, sharpness_factor=sharpness_factor)
 
@@ -159,7 +188,7 @@ class ImageTransformConfig:
 
     weight: float = 1.0
     type: str = "Identity"
-    kwargs: dict[str, Any] = field(default_factory=dict)
+    kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -179,7 +208,7 @@ class ImageTransformsConfig:
     # By default, transforms are applied in Torchvision's suggested order (shown below).
     # Set this to True to apply them in a random order.
     random_order: bool = False
-    tfs: dict[str, ImageTransformConfig] = field(
+    tfs: Dict[str, ImageTransformConfig] = field(
         default_factory=lambda: {
             "brightness": ImageTransformConfig(
                 weight=1.0,
@@ -212,9 +241,21 @@ class ImageTransformsConfig:
 
 def make_transform_from_config(cfg: ImageTransformConfig):
     if cfg.type == "Identity":
-        return v2.Identity(**cfg.kwargs)
+        if TORCHVISION_V2_AVAILABLE:
+            return v2.Identity(**cfg.kwargs)
+        else:
+            # Simple identity transform for v1
+            class IdentityTransform:
+                def __init__(self, **kwargs):
+                    pass
+                def __call__(self, x):
+                    return x
+            return IdentityTransform(**cfg.kwargs)
     elif cfg.type == "ColorJitter":
-        return v2.ColorJitter(**cfg.kwargs)
+        if TORCHVISION_V2_AVAILABLE:
+            return v2.ColorJitter(**cfg.kwargs)
+        else:
+            return ColorJitter(**cfg.kwargs)
     elif cfg.type == "SharpnessJitter":
         return SharpnessJitter(**cfg.kwargs)
     else:
@@ -239,7 +280,16 @@ class ImageTransforms(Transform):
 
         n_subset = min(len(self.transforms), cfg.max_num_transforms)
         if n_subset == 0 or not cfg.enable:
-            self.tf = v2.Identity()
+            if TORCHVISION_V2_AVAILABLE:
+                self.tf = v2.Identity()
+            else:
+                # Simple identity transform for v1
+                class IdentityTransform:
+                    def __init__(self):
+                        pass
+                    def __call__(self, x):
+                        return x
+                self.tf = IdentityTransform()
         else:
             self.tf = RandomSubsetApply(
                 transforms=list(self.transforms.values()),

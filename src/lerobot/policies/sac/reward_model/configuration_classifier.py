@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -39,22 +40,22 @@ class RewardClassifierConfig(PreTrainedConfig):
     learning_rate: float = 1e-4
     weight_decay: float = 0.01
     grad_clip_norm: float = 1.0
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.MEAN_STD,
         }
     )
 
     @property
-    def observation_delta_indices(self) -> list | None:
+    def observation_delta_indices(self) -> Optional[List]:
         return None
 
     @property
-    def action_delta_indices(self) -> list | None:
+    def action_delta_indices(self) -> Optional[List]:
         return None
 
     @property
-    def reward_delta_indices(self) -> list | None:
+    def reward_delta_indices(self) -> Optional[List]:
         return None
 
     def get_optimizer_preset(self) -> OptimizerConfig:
@@ -64,7 +65,7 @@ class RewardClassifierConfig(PreTrainedConfig):
             grad_clip_norm=self.grad_clip_norm,
         )
 
-    def get_scheduler_preset(self) -> LRSchedulerConfig | None:
+    def get_scheduler_preset(self) -> Optional[LRSchedulerConfig]:
         return None
 
     def validate_features(self) -> None:

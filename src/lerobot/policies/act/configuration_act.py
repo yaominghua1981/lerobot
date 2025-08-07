@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass, field
+from typing import Union, Dict, List
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -95,7 +96,7 @@ class ACTConfig(PreTrainedConfig):
     chunk_size: int = 100
     n_action_steps: int = 100
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.MEAN_STD,
             "STATE": NormalizationMode.MEAN_STD,
@@ -106,7 +107,7 @@ class ACTConfig(PreTrainedConfig):
     # Architecture.
     # Vision backbone.
     vision_backbone: str = "resnet18"
-    pretrained_backbone_weights: str | None = "ResNet18_Weights.IMAGENET1K_V1"
+    pretrained_backbone_weights: Union[str, None] = "ResNet18_Weights.IMAGENET1K_V1"
     replace_final_stride_with_dilation: int = False
     # Transformer layers.
     pre_norm: bool = False
@@ -126,7 +127,7 @@ class ACTConfig(PreTrainedConfig):
 
     # Inference.
     # Note: the value used in ACT when temporal ensembling is enabled is 0.01.
-    temporal_ensemble_coeff: float | None = None
+    temporal_ensemble_coeff: Union[float, None] = None
 
     # Training and loss computation.
     dropout: float = 0.1
@@ -178,7 +179,7 @@ class ACTConfig(PreTrainedConfig):
         return None
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(self.chunk_size))
 
     @property

@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import logging
+from typing import Optional
 
 from torch import nn
 
@@ -103,8 +104,8 @@ def make_policy_config(policy_type: str, **kwargs) -> PreTrainedConfig:
 
 def make_policy(
     cfg: PreTrainedConfig,
-    ds_meta: LeRobotDatasetMetadata | None = None,
-    env_cfg: EnvConfig | None = None,
+    ds_meta: Optional[LeRobotDatasetMetadata] = None,
+    env_cfg: Optional[EnvConfig] = None,
 ) -> PreTrainedPolicy:
     """Make an instance of a policy class.
 

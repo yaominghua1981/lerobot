@@ -22,7 +22,7 @@ from itertools import accumulate
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Dict, Union, Tuple, List, Iterator, Set
 
 import datasets
 import jsonlines
@@ -118,7 +118,7 @@ def get_nested_item(obj: DictLike, flattened_key: str, sep: str = "/") -> Any:
     return getter
 
 
-def serialize_dict(stats: dict[str, torch.Tensor | np.ndarray | dict]) -> dict:
+def serialize_dict(stats: Dict[str, Union[torch.Tensor, np.ndarray, dict]]) -> dict:
     serialized_dict = {}
     for key, value in flatten_dict(stats).items():
         if isinstance(value, (torch.Tensor, np.ndarray)):
@@ -152,7 +152,7 @@ def write_json(data: dict, fpath: Path) -> None:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def load_jsonlines(fpath: Path) -> list[Any]:
+def load_jsonlines(fpath: Path) -> List[Any]:
     with jsonlines.open(fpath, "r") as reader:
         return list(reader)
 
@@ -185,12 +185,12 @@ def write_stats(stats: dict, local_dir: Path):
     write_json(serialized_stats, local_dir / STATS_PATH)
 
 
-def cast_stats_to_numpy(stats) -> dict[str, dict[str, np.ndarray]]:
+def cast_stats_to_numpy(stats) -> Dict[str, Dict[str, np.ndarray]]:
     stats = {key: np.array(value) for key, value in flatten_dict(stats).items()}
     return unflatten_dict(stats)
 
 
-def load_stats(local_dir: Path) -> dict[str, dict[str, np.ndarray]]:
+def load_stats(local_dir: Path) -> Dict[str, Dict[str, np.ndarray]]:
     if not (local_dir / STATS_PATH).exists():
         return None
     stats = load_json(local_dir / STATS_PATH)
@@ -205,7 +205,7 @@ def write_task(task_index: int, task: dict, local_dir: Path):
     append_jsonlines(task_dict, local_dir / TASKS_PATH)
 
 
-def load_tasks(local_dir: Path) -> tuple[dict, dict]:
+def load_tasks(local_dir: Path) -> Tuple[dict, dict]:
     tasks = load_jsonlines(local_dir / TASKS_PATH)
     tasks = {item["task_index"]: item["task"] for item in sorted(tasks, key=lambda x: x["task_index"])}
     task_to_task_index = {task: task_index for task_index, task in tasks.items()}
@@ -237,13 +237,13 @@ def load_episodes_stats(local_dir: Path) -> dict:
 
 
 def backward_compatible_episodes_stats(
-    stats: dict[str, dict[str, np.ndarray]], episodes: list[int]
-) -> dict[str, dict[str, np.ndarray]]:
+    stats: Dict[str, Dict[str, np.ndarray]], episodes: List[int]
+) -> Dict[str, Dict[str, np.ndarray]]:
     return dict.fromkeys(episodes, stats)
 
 
 def load_image_as_numpy(
-    fpath: str | Path, dtype: np.dtype = np.float32, channel_first: bool = True
+    fpath: Union[str, Path], dtype: np.dtype = np.float32, channel_first: bool = True
 ) -> np.ndarray:
     img = PILImage.open(fpath).convert("RGB")
     img_array = np.array(img, dtype=dtype)
@@ -254,7 +254,7 @@ def load_image_as_numpy(
     return img_array
 
 
-def hf_transform_to_torch(items_dict: dict[torch.Tensor | None]):
+def hf_transform_to_torch(items_dict: Dict[str, Union[torch.Tensor, None]]):
     """Get a transform function that convert items from Hugging Face dataset (pyarrow)
     to torch tensors. Importantly, images are converted from PIL, which corresponds to
     a channel last representation (h w c) of uint8 type, to a torch image representation
@@ -282,8 +282,8 @@ def is_valid_version(version: str) -> bool:
 
 def check_version_compatibility(
     repo_id: str,
-    version_to_check: str | packaging.version.Version,
-    current_version: str | packaging.version.Version,
+    version_to_check: Union[str, packaging.version.Version],
+    current_version: Union[str, packaging.version.Version],
     enforce_breaking_major: bool = True,
 ) -> None:
     v_check = (
@@ -302,7 +302,7 @@ def check_version_compatibility(
         logging.warning(V21_MESSAGE.format(repo_id=repo_id, version=v_check))
 
 
-def get_repo_versions(repo_id: str) -> list[packaging.version.Version]:
+def get_repo_versions(repo_id: str) -> List[packaging.version.Version]:
     """Returns available valid versions (branches and tags) on given repo."""
     api = HfApi()
     repo_refs = api.list_repo_refs(repo_id, repo_type="dataset")
@@ -315,7 +315,7 @@ def get_repo_versions(repo_id: str) -> list[packaging.version.Version]:
     return repo_versions
 
 
-def get_safe_version(repo_id: str, version: str | packaging.version.Version) -> str:
+def get_safe_version(repo_id: str, version: Union[str, packaging.version.Version]) -> str:
     """
     Returns the version if available on repo or the latest compatible one.
     Otherwise, will throw a `CompatibilityError`.
@@ -386,15 +386,15 @@ def get_hf_features_from_features(features: dict) -> datasets.Features:
     return datasets.Features(hf_features)
 
 
-def _validate_feature_names(features: dict[str, dict]) -> None:
+def _validate_feature_names(features: Dict[str, dict]) -> None:
     invalid_features = {name: ft for name, ft in features.items() if "/" in name}
     if invalid_features:
         raise ValueError(f"Feature names should not contain '/'. Found '/' in '{invalid_features}'.")
 
 
 def hw_to_dataset_features(
-    hw_features: dict[str, type | tuple], prefix: str, use_video: bool = True
-) -> dict[str, dict]:
+    hw_features: Dict[str, Union[type, tuple]], prefix: str, use_video: bool = True
+) -> Dict[str, dict]:
     features = {}
     joint_fts = {key: ftype for key, ftype in hw_features.items() if ftype is float}
     cam_fts = {key: shape for key, shape in hw_features.items() if isinstance(shape, tuple)}
@@ -425,8 +425,8 @@ def hw_to_dataset_features(
 
 
 def build_dataset_frame(
-    ds_features: dict[str, dict], values: dict[str, Any], prefix: str
-) -> dict[str, np.ndarray]:
+    ds_features: Dict[str, dict], values: Dict[str, Any], prefix: str
+) -> Dict[str, np.ndarray]:
     frame = {}
     for key, ft in ds_features.items():
         if key in DEFAULT_FEATURES or not key.startswith(prefix):
@@ -439,7 +439,7 @@ def build_dataset_frame(
     return frame
 
 
-def dataset_to_policy_features(features: dict[str, dict]) -> dict[str, PolicyFeature]:
+def dataset_to_policy_features(features: Dict[str, dict]) -> Dict[str, PolicyFeature]:
     # TODO(aliberts): Implement "type" in dataset features and simplify this
     policy_features = {}
     for key, ft in features.items():
@@ -475,7 +475,7 @@ def create_empty_dataset_info(
     fps: int,
     features: dict,
     use_videos: bool,
-    robot_type: str | None = None,
+    robot_type: Union[str, None] = None,
 ) -> dict:
     return {
         "codebase_version": codebase_version,
@@ -495,8 +495,8 @@ def create_empty_dataset_info(
 
 
 def get_episode_data_index(
-    episode_dicts: dict[dict], episodes: list[int] | None = None
-) -> dict[str, torch.Tensor]:
+    episode_dicts: Dict[Any, dict], episodes: Union[List[int], None] = None
+) -> Dict[str, torch.Tensor]:
     episode_lengths = {ep_idx: ep_dict["length"] for ep_idx, ep_dict in episode_dicts.items()}
     if episodes is not None:
         episode_lengths = {ep_idx: episode_lengths[ep_idx] for ep_idx in episodes}
@@ -511,7 +511,7 @@ def get_episode_data_index(
 def check_timestamps_sync(
     timestamps: np.ndarray,
     episode_indices: np.ndarray,
-    episode_data_index: dict[str, np.ndarray],
+    episode_data_index: Dict[str, np.ndarray],
     fps: int,
     tolerance_s: float,
     raise_value_error: bool = True,
@@ -584,7 +584,7 @@ def check_timestamps_sync(
 
 
 def check_delta_timestamps(
-    delta_timestamps: dict[str, list[float]], fps: int, tolerance_s: float, raise_value_error: bool = True
+    delta_timestamps: Dict[str, List[float]], fps: int, tolerance_s: float, raise_value_error: bool = True
 ) -> bool:
     """This will check if all the values in delta_timestamps are multiples of 1/fps +/- tolerance.
     This is to ensure that these delta_timestamps added to any timestamp from a dataset will themselves be
@@ -613,7 +613,7 @@ def check_delta_timestamps(
     return True
 
 
-def get_delta_indices(delta_timestamps: dict[str, list[float]], fps: int) -> dict[str, list[int]]:
+def get_delta_indices(delta_timestamps: Dict[str, List[float]], fps: int) -> Dict[str, List[int]]:
     delta_indices = {}
     for key, delta_ts in delta_timestamps.items():
         delta_indices[key] = [round(d * fps) for d in delta_ts]
@@ -634,7 +634,7 @@ def cycle(iterable):
             iterator = iter(iterable)
 
 
-def create_branch(repo_id, *, branch: str, repo_type: str | None = None) -> None:
+def create_branch(repo_id, *, branch: str, repo_type: Union[str, None] = None) -> None:
     """Create a branch on a existing Hugging Face repo. Delete the branch if it already
     exists before creating it.
     """
@@ -650,8 +650,8 @@ def create_branch(repo_id, *, branch: str, repo_type: str | None = None) -> None
 
 
 def create_lerobot_dataset_card(
-    tags: list | None = None,
-    dataset_info: dict | None = None,
+    tags: Union[list, None] = None,
+    dataset_info: Union[dict, None] = None,
     **kwargs,
 ) -> DatasetCard:
     """
@@ -717,7 +717,7 @@ class IterableNamespace(SimpleNamespace):
         details: IterableNamespace(age=25)
     """
 
-    def __init__(self, dictionary: dict[str, Any] = None, **kwargs):
+    def __init__(self, dictionary: Dict[str, Any] = None, **kwargs):
         super().__init__(**kwargs)
         if dictionary is not None:
             for key, value in dictionary.items():
@@ -756,7 +756,7 @@ def validate_frame(frame: dict, features: dict):
         raise ValueError(error_message)
 
 
-def validate_features_presence(actual_features: set[str], expected_features: set[str]):
+def validate_features_presence(actual_features: Set[str], expected_features: Set[str]):
     error_message = ""
     missing_features = expected_features - actual_features
     extra_features = actual_features - expected_features
@@ -771,7 +771,7 @@ def validate_features_presence(actual_features: set[str], expected_features: set
     return error_message
 
 
-def validate_feature_dtype_and_shape(name: str, feature: dict, value: np.ndarray | PILImage.Image | str):
+def validate_feature_dtype_and_shape(name: str, feature: dict, value: Union[np.ndarray, PILImage.Image, str]):
     expected_dtype = feature["dtype"]
     expected_shape = feature["shape"]
     if is_valid_numpy_dtype_string(expected_dtype):
@@ -785,7 +785,7 @@ def validate_feature_dtype_and_shape(name: str, feature: dict, value: np.ndarray
 
 
 def validate_feature_numpy_array(
-    name: str, expected_dtype: str, expected_shape: list[int], value: np.ndarray
+    name: str, expected_dtype: str, expected_shape: List[int], value: np.ndarray
 ):
     error_message = ""
     if isinstance(value, np.ndarray):
@@ -803,7 +803,7 @@ def validate_feature_numpy_array(
     return error_message
 
 
-def validate_feature_image_or_video(name: str, expected_shape: list[str], value: np.ndarray | PILImage.Image):
+def validate_feature_image_or_video(name: str, expected_shape: List[str], value: Union[np.ndarray, PILImage.Image]):
     # Note: The check of pixels range ([0,1] for float and [0,255] for uint8) is done by the image writer threads.
     error_message = ""
     if isinstance(value, np.ndarray):

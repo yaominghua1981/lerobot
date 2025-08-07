@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
+from typing import Union, Dict, List, Tuple
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
@@ -30,7 +31,7 @@ class SmolVLAConfig(PreTrainedConfig):
     chunk_size: int = 50
     n_action_steps: int = 50
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.IDENTITY,
             "STATE": NormalizationMode.MEAN_STD,
@@ -43,7 +44,7 @@ class SmolVLAConfig(PreTrainedConfig):
     max_action_dim: int = 32
 
     # Image preprocessing
-    resize_imgs_with_padding: tuple[int, int] = (512, 512)
+    resize_imgs_with_padding: Tuple[int, int] = (512, 512)
 
     # Add empty images. Used by smolvla_aloha_sim which adds the empty
     # left and right wrist cameras in addition to the top camera.
@@ -73,7 +74,7 @@ class SmolVLAConfig(PreTrainedConfig):
 
     # Training presets
     optimizer_lr: float = 1e-4
-    optimizer_betas: tuple[float, float] = (0.9, 0.95)
+    optimizer_betas: Tuple[float, float] = (0.9, 0.95)
     optimizer_eps: float = 1e-8
     optimizer_weight_decay: float = 1e-10
     optimizer_grad_clip_norm: float = 10
@@ -142,11 +143,11 @@ class SmolVLAConfig(PreTrainedConfig):
         )
 
     @property
-    def observation_delta_indices(self) -> list:
+    def observation_delta_indices(self) -> List:
         return [0]
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(self.chunk_size))
 
     @property

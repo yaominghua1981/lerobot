@@ -15,13 +15,14 @@
 # limitations under the License.
 
 from collections import deque
+from typing import Dict, List, Optional
 
 import torch
 from torch import nn
 
 
 def populate_queues(
-    queues: dict[str, deque], batch: dict[str, torch.Tensor], exclude_keys: list[str] | None = None
+    queues: Dict[str, deque], batch: Dict[str, torch.Tensor], exclude_keys: Optional[List[str]] = None
 ):
     if exclude_keys is None:
         exclude_keys = []

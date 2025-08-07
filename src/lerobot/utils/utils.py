@@ -25,6 +25,7 @@ from copy import copy, deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
+from typing import Union, List
 
 import numpy as np
 import torch
@@ -59,26 +60,25 @@ def auto_select_torch_device() -> torch.device:
 def get_safe_torch_device(try_device: str, log: bool = False) -> torch.device:
     """Given a string, return a torch.device with checks on whether the device is available."""
     try_device = str(try_device)
-    match try_device:
-        case "cuda":
-            assert torch.cuda.is_available()
-            device = torch.device("cuda")
-        case "mps":
-            assert torch.backends.mps.is_available()
-            device = torch.device("mps")
-        case "cpu":
-            device = torch.device("cpu")
-            if log:
-                logging.warning("Using CPU, this will be slow.")
-        case _:
-            device = torch.device(try_device)
-            if log:
-                logging.warning(f"Using custom {try_device} device.")
+    if try_device == "cuda":
+        assert torch.cuda.is_available()
+        device = torch.device("cuda")
+    elif try_device == "mps":
+        assert torch.backends.mps.is_available()
+        device = torch.device("mps")
+    elif try_device == "cpu":
+        device = torch.device("cpu")
+        if log:
+            logging.warning("Using CPU, this will be slow.")
+    else:
+        device = torch.device(try_device)
+        if log:
+            logging.warning(f"Using custom {try_device} device.")
 
     return device
 
 
-def get_safe_dtype(dtype: torch.dtype, device: str | torch.device):
+def get_safe_dtype(dtype: torch.dtype, device: Union[str, torch.device]):
     """
     mps is currently not compatible with float64
     """
@@ -112,7 +112,7 @@ def is_amp_available(device: str):
 
 
 def init_logging(
-    log_file: Path | None = None,
+    log_file: Union[Path, None] = None,
     display_pid: bool = False,
     console_level: str = "INFO",
     file_level: str = "DEBUG",
@@ -303,13 +303,13 @@ class TimerManager:
         self,
         label: str = "Elapsed-time",
         log: bool = True,
-        logger: logging.Logger | None = None,
+        logger: Union[logging.Logger, None] = None,
     ):
         self.label = label
         self.log = log
         self.logger = logger
-        self._start: float | None = None
-        self._history: list[float] = []
+        self._start: Union[float, None] = None
+        self._history: List[float] = []
 
     def __enter__(self):
         return self.start()
@@ -354,11 +354,11 @@ class TimerManager:
         return len(self._history)
 
     @property
-    def history(self) -> list[float]:
+    def history(self) -> List[float]:
         return deepcopy(self._history)
 
     @property
-    def fps_history(self) -> list[float]:
+    def fps_history(self) -> List[float]:
         return [1.0 / t for t in self._history]
 
     @property

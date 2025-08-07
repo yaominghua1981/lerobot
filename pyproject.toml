@@ -29,7 +29,7 @@ version = "0.2.0"
 description = "🤗 LeRobot: State-of-the-art Machine Learning for Real-World Robotics in Pytorch"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 authors = [
     { name = "Rémi Cadène", email = "re.cadene@gmail.com" },
     { name = "Simon Alibert", email = "alibert.sim@gmail.com" },
@@ -50,6 +50,8 @@ classifiers = [
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -59,42 +61,42 @@ keywords = ["lerobot", "huggingface", "robotics",  "machine learning", "artifici
 dependencies = [
 
     # Hugging Face dependencies
-    "datasets>=2.19.0,<=3.6.0", # TODO: Bumb dependency
-    "diffusers>=0.27.2",
-    "huggingface-hub[hf-transfer,cli]>=0.27.1",
+    "datasets>=2.12.0,<2.20.0", # Further downgraded for Python 3.8 compatibility
+    "diffusers>=0.21.0,<0.25.0", # Further downgraded for Python 3.8 compatibility
+    "huggingface-hub[hf-transfer,cli]>=0.16.0,<0.20.0", # Further downgraded for Python 3.8 compatibility
 
     # Core dependencies
-    "cmake>=3.29.0.1",
-    "einops>=0.8.0",
-    "opencv-python-headless>=4.9.0",
-    "av>=14.2.0",
-    "torch>=2.2.1",
+    "cmake>=3.18.0,<3.30.0", # Downgraded for Python 3.8 compatibility
+    "einops>=0.6.0,<0.9.0", # Downgraded for Python 3.8 compatibility
+    "opencv-python-headless>=4.8.0,<4.10.0", # Downgraded for Python 3.8 compatibility
+    "av>=10.0.0,<15.0.0", # Downgraded for Python 3.8 compatibility
+    "torch==2.1.0a0+41361538.nv23.6", # Fixed version for NVIDIA Jetson compatibility
     "torchcodec>=0.2.1; sys_platform != 'win32' and (sys_platform != 'linux' or (platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')) and (sys_platform != 'darwin' or platform_machine != 'x86_64')",
-    "torchvision>=0.21.0",
-    "jsonlines>=4.0.0",
-    "packaging>=24.2",
-    "pynput>=1.7.7",
-    "pyserial>=3.5",
-    "wandb>=0.16.3",
+    "torchvision==0.16.2", # Fixed version to match torch 2.1.0a0+41361538.nv23.6
+    "jsonlines>=3.1.0,<5.0.0", # Downgraded for Python 3.8 compatibility
+    "packaging>=21.0,<25.0", # Downgraded for Python 3.8 compatibility
+    "pynput>=1.7.6,<2.0.0", # Downgraded for Python 3.8 compatibility
+    "pyserial>=3.5,<4.0.0",
+    "wandb>=0.15.0,<0.17.0", # Downgraded for Python 3.8 compatibility
 
-    "draccus==0.10.0", # TODO: Remove ==
-    "gymnasium>=0.29.1,<1.0.0", # TODO: Bumb dependency
-    "rerun-sdk>=0.21.0,<0.23.0", # TODO: Bumb dependency
+    "draccus>=0.9.0,<0.10.0", # Downgraded for Python 3.8 compatibility
+    "gymnasium>=0.27.0,<0.29.0", # Further downgraded for Python 3.8 compatibility
+    "rerun-sdk>=0.19.0,<0.21.0", # Further downgraded for Python 3.8 compatibility
 
     # Support dependencies
-    "deepdiff>=7.0.1,<9.0.0",
-    "flask>=3.0.3,<4.0.0",
-    "imageio[ffmpeg]>=2.34.0,<3.0.0",
-    "termcolor>=2.4.0,<4.0.0",
+    "deepdiff>=6.0.0,<9.0.0", # Downgraded for Python 3.8 compatibility
+    "flask>=2.3.0,<4.0.0", # Downgraded for Python 3.8 compatibility
+    "imageio[ffmpeg]>=2.31.0,<3.0.0", # Downgraded for Python 3.8 compatibility
+    "termcolor>=2.3.0,<4.0.0", # Downgraded for Python 3.8 compatibility
 ]
 
 # Optional dependencies
 [project.optional-dependencies]
 
 # Common
-pygame-dep = ["pygame>=2.5.1"]
+pygame-dep = ["pygame>=2.1.0,<3.0.0"] # Downgraded for Python 3.8 compatibility
 placo-dep = ["placo>=0.9.6"]
-transformers-dep = ["transformers>=4.50.3,<4.52.0"] # TODO: Bumb dependency
+transformers-dep = ["transformers>=4.25.0,<4.32.0"] # Further downgraded for Python 3.8 compatibility
 grpcio-dep = ["grpcio==1.73.1", "protobuf==6.31.0"]
 
 # Motors
@@ -104,10 +106,10 @@ dynamixel = ["dynamixel-sdk>=3.7.31"]
 # Robots
 gamepad = ["lerobot[pygame-dep]", "hidapi>=0.14.0"]
 hopejr = ["lerobot[feetech]", "lerobot[pygame-dep]"]
-lekiwi = ["lerobot[feetech]", "pyzmq>=26.2.1"]
+lekiwi = ["lerobot[feetech]", "pyzmq>=25.0.0,<27.0.0"] # Downgraded for Python 3.8 compatibility
 kinematics = ["lerobot[placo-dep]"]
 intelrealsense = [
-    "pyrealsense2>=2.55.1.6486 ; sys_platform != 'darwin'",
+    "pyrealsense2>=2.54.0,<2.56.0 ; sys_platform != 'darwin'", # Downgraded for Python 3.8 compatibility
     "pyrealsense2-macosx>=2.54 ; sys_platform == 'darwin'",
 ]
 # stretch = [
@@ -118,21 +120,21 @@ intelrealsense = [
 
 # Policies
 pi0 = ["lerobot[transformers-dep]"]
-smolvla = ["lerobot[transformers-dep]", "num2words>=0.5.14", "accelerate>=1.7.0", "safetensors>=0.4.3"]
+smolvla = ["lerobot[transformers-dep]", "num2words>=0.5.14", "accelerate>=0.18.0,<0.21.0", "safetensors>=0.3.0,<0.4.0"] # Further downgraded for Python 3.8 compatibility
 hilserl = ["lerobot[transformers-dep]", "gym-hil>=0.1.9", "lerobot[grpcio-dep]", "lerobot[placo-dep]"]
 
 # Features
-async = ["lerobot[grpcio-dep]", "matplotlib>=3.10.3"]
+async = ["lerobot[grpcio-dep]", "matplotlib>=3.5.0,<3.11.0"] # Downgraded for Python 3.8 compatibility
 
 # Development
 docs = ["hf-doc-builder @ git+https://github.com/huggingface/doc-builder.git@main", "watchdog >= 6.0.0"]
-dev = ["pre-commit>=3.7.0", "debugpy>=1.8.1", "lerobot[grpcio-dep]", "grpcio-tools==1.73.1"]
-test = ["pytest>=8.1.0", "pytest-timeout>=2.4.0", "pytest-cov>=5.0.0", "mock-serial>=0.0.1 ; sys_platform != 'win32'"]
-video_benchmark = ["scikit-image>=0.23.2", "pandas>=2.2.2"]
+dev = ["pre-commit>=2.20.0,<3.1.0", "debugpy>=1.6.0,<1.9.0", "lerobot[grpcio-dep]", "grpcio-tools==1.73.1"] # Further downgraded for Python 3.8 compatibility
+test = ["pytest>=7.0.0,<8.2.0", "pytest-timeout>=2.1.0,<2.5.0", "pytest-cov>=4.0.0,<5.1.0", "mock-serial>=0.0.1 ; sys_platform != 'win32'"] # Downgraded for Python 3.8 compatibility
+video_benchmark = ["scikit-image>=0.20.0,<0.24.0", "pandas>=1.5.0,<2.3.0"] # Downgraded for Python 3.8 compatibility
 
 # Simulation
 aloha = ["gym-aloha>=0.1.1"]
-pusht = ["gym-pusht>=0.1.5", "pymunk>=6.6.0,<7.0.0"] # TODO: Fix pymunk version in gym-pusht instead
+pusht = ["gym-pusht>=0.1.5", "pymunk>=6.4.0,<7.0.0"] # Downgraded for Python 3.8 compatibility
 xarm = ["gym-xarm>=0.1.1"]
 
 # All
@@ -172,7 +174,7 @@ lerobot-train="lerobot.scripts.train:main"
 where = ["src"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py38"
 line-length = 110
 exclude = ["tests/artifacts/**/*.safetensors", "*_pb2.py", "*_pb2_grpc.py"]
 
@@ -259,7 +261,7 @@ default.extend-ignore-identifiers-re = [
 # paths = ["src/lerobot"]
 
 # [tool.mypy]
-# python_version = "3.10"
+# python_version = "3.8"
 # warn_return_any = true
 # warn_unused_configs = true
 # ignore_missing_imports = false

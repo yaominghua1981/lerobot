@@ -15,10 +15,14 @@ import abc
 import builtins
 import logging
 import os
-from importlib.resources import files
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python 3.8 compatibility
+    from importlib_resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TypeVar
+from typing import TypeVar, Type, Optional, Union, Dict, List, Tuple
 
 import packaging
 import safetensors
@@ -67,17 +71,17 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
 
     @classmethod
     def from_pretrained(
-        cls: builtins.type[T],
-        pretrained_name_or_path: str | Path,
+        cls: Type[T],
+        pretrained_name_or_path: Union[str, Path],
         *,
-        config: PreTrainedConfig | None = None,
+        config: Optional[PreTrainedConfig] = None,
         force_download: bool = False,
-        resume_download: bool | None = None,
-        proxies: dict | None = None,
-        token: str | bool | None = None,
-        cache_dir: str | Path | None = None,
+        resume_download: Optional[bool] = None,
+        proxies: Optional[Dict] = None,
+        token: Optional[Union[str, bool]] = None,
+        cache_dir: Optional[Union[str, Path]] = None,
         local_files_only: bool = False,
-        revision: str | None = None,
+        revision: Optional[str] = None,
         strict: bool = False,
         **kwargs,
     ) -> T:
@@ -143,7 +147,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
         return model
 
     @abc.abstractmethod
-    def get_optim_params(self) -> dict:
+    def get_optim_params(self) -> Dict:
         """
         Returns the policy-specific parameters dict to be passed on to the optimizer.
         """
@@ -159,7 +163,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
 
     # TODO(aliberts, rcadene): split into 'forward' and 'compute_loss'?
     @abc.abstractmethod
-    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict | None]:
+    def forward(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Optional[Dict]]:
         """_summary_
 
         Args:
@@ -172,7 +176,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
+    def predict_action_chunk(self, batch: Dict[str, Tensor]) -> Tensor:
         """Returns the action chunk (for action chunking policies) for a given observation, potentially in batch mode.
 
         Child classes using action chunking should use this method within `select_action` to form the action chunk
@@ -181,7 +185,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def select_action(self, batch: dict[str, Tensor]) -> Tensor:
+    def select_action(self, batch: Dict[str, Tensor]) -> Tensor:
         """Return one action to run in the environment (potentially in batch mode).
 
         When the model uses a history of observations, or outputs a sequence of actions, this method deals
@@ -223,7 +227,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
             logging.info(f"Model pushed to {commit_info.repo_url.url}")
 
     def generate_model_card(
-        self, dataset_repo_id: str, model_type: str, license: str | None, tags: list[str] | None
+        self, dataset_repo_id: str, model_type: str, license: Optional[str] = None, tags: Optional[List[str]] = None
     ) -> ModelCard:
         base_model = "lerobot/smolvla_base" if model_type == "smolvla" else None  # Set a base model
 

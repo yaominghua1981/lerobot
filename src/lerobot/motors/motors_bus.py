@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from pprint import pformat
-from typing import Protocol, TypeAlias
+from typing import Protocol, Union, Dict, List, Tuple
 
 import serial
 from deepdiff import DeepDiff
@@ -35,20 +35,20 @@ from tqdm import tqdm
 from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from lerobot.utils.utils import enter_pressed, move_cursor_up
 
-NameOrID: TypeAlias = str | int
-Value: TypeAlias = int | float
+NameOrID = Union[str, int]
+Value = Union[int, float]
 
 logger = logging.getLogger(__name__)
 
 
-def get_ctrl_table(model_ctrl_table: dict[str, dict], model: str) -> dict[str, tuple[int, int]]:
+def get_ctrl_table(model_ctrl_table: Dict[str, dict], model: str) -> Dict[str, Tuple[int, int]]:
     ctrl_table = model_ctrl_table.get(model)
     if ctrl_table is None:
         raise KeyError(f"Control table for {model=} not found.")
     return ctrl_table
 
 
-def get_address(model_ctrl_table: dict[str, dict], model: str, data_name: str) -> tuple[int, int]:
+def get_address(model_ctrl_table: Dict[str, dict], model: str, data_name: str) -> Tuple[int, int]:
     ctrl_table = get_ctrl_table(model_ctrl_table, model)
     addr_bytes = ctrl_table.get(data_name)
     if addr_bytes is None:
@@ -56,7 +56,7 @@ def get_address(model_ctrl_table: dict[str, dict], model: str, data_name: str) -
     return addr_bytes
 
 
-def assert_same_address(model_ctrl_table: dict[str, dict], motor_models: list[str], data_name: str) -> None:
+def assert_same_address(model_ctrl_table: Dict[str, dict], motor_models: List[str], data_name: str) -> None:
     all_addr = []
     all_bytes = []
     for model in motor_models:
@@ -250,21 +250,21 @@ class MotorsBus(abc.ABC):
     """
 
     apply_drive_mode: bool
-    available_baudrates: list[int]
+    available_baudrates: List[int]
     default_baudrate: int
     default_timeout: int
-    model_baudrate_table: dict[str, dict]
-    model_ctrl_table: dict[str, dict]
-    model_encoding_table: dict[str, dict]
-    model_number_table: dict[str, int]
-    model_resolution_table: dict[str, int]
-    normalized_data: list[str]
+    model_baudrate_table: Dict[str, dict]
+    model_ctrl_table: Dict[str, dict]
+    model_encoding_table: Dict[str, dict]
+    model_number_table: Dict[str, int]
+    model_resolution_table: Dict[str, int]
+    normalized_data: List[str]
 
     def __init__(
         self,
         port: str,
-        motors: dict[str, Motor],
-        calibration: dict[str, MotorCalibration] | None = None,
+        motors: Dict[str, Motor],
+        calibration: Union[Dict[str, MotorCalibration], None] = None,
     ):
         self.port = port
         self.motors = motors
@@ -305,11 +305,11 @@ class MotorsBus(abc.ABC):
         )
 
     @cached_property
-    def models(self) -> list[str]:
+    def models(self) -> List[str]:
         return [m.model for m in self.motors.values()]
 
     @cached_property
-    def ids(self) -> list[int]:
+    def ids(self) -> List[int]:
         return [m.id for m in self.motors.values()]
 
     def _model_nb_to_model(self, motor_nb: int) -> str:
@@ -337,7 +337,7 @@ class MotorsBus(abc.ABC):
         else:
             raise TypeError(f"'{motor}' should be int, str.")
 
-    def _get_motors_list(self, motors: str | list[str] | None) -> list[str]:
+    def _get_motors_list(self, motors: Union[str, List[str], None]) -> List[str]:
         if motors is None:
             return list(self.motors)
         elif isinstance(motors, str):
@@ -347,7 +347,7 @@ class MotorsBus(abc.ABC):
         else:
             raise TypeError(motors)
 
-    def _get_ids_values_dict(self, values: Value | dict[str, Value] | None) -> list[str]:
+    def _get_ids_values_dict(self, values: Union[Value, Dict[str, Value], None]) -> List[str]:
         if isinstance(values, (int, float)):
             return dict.fromkeys(self.ids, values)
         elif isinstance(values, dict):
@@ -475,7 +475,7 @@ class MotorsBus(abc.ABC):
         logger.debug(f"{self.__class__.__name__} disconnected.")
 
     @classmethod
-    def scan_port(cls, port: str, *args, **kwargs) -> dict[int, list[int]]:
+    def scan_port(cls, port: str, *args, **kwargs) -> Dict[int, List[int]]:
         """Probe *port* at every supported baud-rate and list responding IDs.
 
         Args:
@@ -500,7 +500,7 @@ class MotorsBus(abc.ABC):
         return baudrate_ids
 
     def setup_motor(
-        self, motor: str, initial_baudrate: int | None = None, initial_id: int | None = None
+        self, motor: str, initial_baudrate: Union[int, None] = None, initial_id: Union[int, None] = None
     ) -> None:
         """Assign the correct ID and baud-rate to a single motor.
 
@@ -544,7 +544,7 @@ class MotorsBus(abc.ABC):
         self.set_baudrate(self.default_baudrate)
 
     @abc.abstractmethod
-    def _find_single_motor(self, motor: str, initial_baudrate: int | None) -> tuple[int, int]:
+    def _find_single_motor(self, motor: str, initial_baudrate: Union[int, None]) -> Tuple[int, int]:
         pass
 
     @abc.abstractmethod
@@ -557,7 +557,7 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def disable_torque(self, motors: int | str | list[str] | None = None, num_retry: int = 0) -> None:
+    def disable_torque(self, motors: Union[int, str, List[str], None] = None, num_retry: int = 0) -> None:
         """Disable torque on selected motors.
 
         Disabling Torque allows to write to the motors' permanent memory area (EPROM/EEPROM).
@@ -575,7 +575,7 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def enable_torque(self, motors: str | list[str] | None = None, num_retry: int = 0) -> None:
+    def enable_torque(self, motors: Union[str, List[str], None] = None, num_retry: int = 0) -> None:
         """Enable torque on selected motors.
 
         Args:
@@ -586,7 +586,7 @@ class MotorsBus(abc.ABC):
         pass
 
     @contextmanager
-    def torque_disabled(self, motors: int | str | list[str] | None = None):
+    def torque_disabled(self, motors: Union[int, str, List[str], None] = None):
         """Context-manager that guarantees torque is re-enabled.
 
         This helper is useful to temporarily disable torque when configuring motors.
@@ -602,7 +602,7 @@ class MotorsBus(abc.ABC):
         finally:
             self.enable_torque(motors)
 
-    def set_timeout(self, timeout_ms: int | None = None):
+    def set_timeout(self, timeout_ms: Union[int, None] = None):
         """Change the packet timeout used by the SDK.
 
         Args:
@@ -644,7 +644,7 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def read_calibration(self) -> dict[str, MotorCalibration]:
+    def read_calibration(self) -> Dict[str, MotorCalibration]:
         """Read calibration parameters from the motors.
 
         Returns:
@@ -653,7 +653,7 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def write_calibration(self, calibration_dict: dict[str, MotorCalibration], cache: bool = True) -> None:
+    def write_calibration(self, calibration_dict: Dict[str, MotorCalibration], cache: bool = True) -> None:
         """Write calibration parameters to the motors and optionally cache them.
 
         Args:
@@ -663,7 +663,7 @@ class MotorsBus(abc.ABC):
         """
         pass
 
-    def reset_calibration(self, motors: NameOrID | list[NameOrID] | None = None) -> None:
+    def reset_calibration(self, motors: Union[NameOrID, List[NameOrID], None] = None) -> None:
         """Restore factory calibration for the selected motors.
 
         Homing offset is set to ``0`` and min/max position limits are set to the full usable range.
@@ -689,7 +689,7 @@ class MotorsBus(abc.ABC):
 
         self.calibration = {}
 
-    def set_half_turn_homings(self, motors: NameOrID | list[NameOrID] | None = None) -> dict[NameOrID, Value]:
+    def set_half_turn_homings(self, motors: Union[NameOrID, List[NameOrID], None] = None) -> Dict[NameOrID, Value]:
         """Centre each motor range around its current position.
 
         The function computes and writes a homing offset such that the present position becomes exactly one
@@ -717,12 +717,12 @@ class MotorsBus(abc.ABC):
         return homing_offsets
 
     @abc.abstractmethod
-    def _get_half_turn_homings(self, positions: dict[NameOrID, Value]) -> dict[NameOrID, Value]:
+    def _get_half_turn_homings(self, positions: Dict[NameOrID, Value]) -> Dict[NameOrID, Value]:
         pass
 
     def record_ranges_of_motion(
-        self, motors: NameOrID | list[NameOrID] | None = None, display_values: bool = True
-    ) -> tuple[dict[NameOrID, Value], dict[NameOrID, Value]]:
+        self, motors: Union[NameOrID, List[NameOrID], None] = None, display_values: bool = True
+    ) -> Tuple[Dict[NameOrID, Value], Dict[NameOrID, Value]]:
         """Interactively record the min/max encoder values of each motor.
 
         Move the joints by hand (with torque disabled) while the method streams live positions. Press
@@ -773,7 +773,7 @@ class MotorsBus(abc.ABC):
 
         return mins, maxes
 
-    def _normalize(self, ids_values: dict[int, int]) -> dict[int, float]:
+    def _normalize(self, ids_values: Dict[int, int]) -> Dict[int, float]:
         if not self.calibration:
             raise RuntimeError(f"{self} has no calibration registered.")
 
@@ -802,7 +802,7 @@ class MotorsBus(abc.ABC):
 
         return normalized_values
 
-    def _unnormalize(self, ids_values: dict[int, float]) -> dict[int, int]:
+    def _unnormalize(self, ids_values: Dict[int, float]) -> Dict[int, int]:
         if not self.calibration:
             raise RuntimeError(f"{self} has no calibration registered.")
 
@@ -833,14 +833,14 @@ class MotorsBus(abc.ABC):
         return unnormalized_values
 
     @abc.abstractmethod
-    def _encode_sign(self, data_name: str, ids_values: dict[int, int]) -> dict[int, int]:
+    def _encode_sign(self, data_name: str, ids_values: Dict[int, int]) -> Dict[int, int]:
         pass
 
     @abc.abstractmethod
-    def _decode_sign(self, data_name: str, ids_values: dict[int, int]) -> dict[int, int]:
+    def _decode_sign(self, data_name: str, ids_values: Dict[int, int]) -> Dict[int, int]:
         pass
 
-    def _serialize_data(self, value: int, length: int) -> list[int]:
+    def _serialize_data(self, value: int, length: int) -> List[int]:
         """
         Converts an unsigned integer value into a list of byte-sized integers to be sent via a communication
         protocol. Depending on the protocol, split values can be in big-endian or little-endian order.
@@ -863,11 +863,11 @@ class MotorsBus(abc.ABC):
         return self._split_into_byte_chunks(value, length)
 
     @abc.abstractmethod
-    def _split_into_byte_chunks(self, value: int, length: int) -> list[int]:
+    def _split_into_byte_chunks(self, value: int, length: int) -> List[int]:
         """Convert an integer into a list of byte-sized integers."""
         pass
 
-    def ping(self, motor: NameOrID, num_retry: int = 0, raise_on_error: bool = False) -> int | None:
+    def ping(self, motor: NameOrID, num_retry: int = 0, raise_on_error: bool = False) -> Union[int, None]:
         """Ping a single motor and return its model number.
 
         Args:
@@ -900,7 +900,7 @@ class MotorsBus(abc.ABC):
         return model_number
 
     @abc.abstractmethod
-    def broadcast_ping(self, num_retry: int = 0, raise_on_error: bool = False) -> dict[int, int] | None:
+    def broadcast_ping(self, num_retry: int = 0, raise_on_error: bool = False) -> Union[Dict[int, int], None]:
         """Ping every ID on the bus using the broadcast address.
 
         Args:
@@ -961,7 +961,7 @@ class MotorsBus(abc.ABC):
         num_retry: int = 0,
         raise_on_error: bool = True,
         err_msg: str = "",
-    ) -> tuple[int, int]:
+    ) -> Tuple[int, int]:
         if length == 1:
             read_fn = self.packet_handler.read1ByteTxRx
         elif length == 2:
@@ -1032,7 +1032,7 @@ class MotorsBus(abc.ABC):
         num_retry: int = 0,
         raise_on_error: bool = True,
         err_msg: str = "",
-    ) -> tuple[int, int]:
+    ) -> Tuple[int, int]:
         data = self._serialize_data(value, length)
         for n_try in range(1 + num_retry):
             comm, error = self.packet_handler.writeTxRx(self.port_handler, motor_id, addr, length, data)
@@ -1053,11 +1053,11 @@ class MotorsBus(abc.ABC):
     def sync_read(
         self,
         data_name: str,
-        motors: str | list[str] | None = None,
+        motors: Union[str, List[str], None] = None,
         *,
         normalize: bool = True,
         num_retry: int = 0,
-    ) -> dict[str, Value]:
+    ) -> Dict[str, Value]:
         """Read the same register from several motors at once.
 
         Args:
@@ -1102,12 +1102,12 @@ class MotorsBus(abc.ABC):
         self,
         addr: int,
         length: int,
-        motor_ids: list[int],
+        motor_ids: List[int],
         *,
         num_retry: int = 0,
         raise_on_error: bool = True,
         err_msg: str = "",
-    ) -> tuple[dict[int, int], int]:
+    ) -> Tuple[Dict[int, int], int]:
         self._setup_sync_reader(motor_ids, addr, length)
         for n_try in range(1 + num_retry):
             comm = self.sync_reader.txRxPacket()
@@ -1124,7 +1124,7 @@ class MotorsBus(abc.ABC):
         values = {id_: self.sync_reader.getData(id_, addr, length) for id_ in motor_ids}
         return values, comm
 
-    def _setup_sync_reader(self, motor_ids: list[int], addr: int, length: int) -> None:
+    def _setup_sync_reader(self, motor_ids: List[int], addr: int, length: int) -> None:
         self.sync_reader.clearParam()
         self.sync_reader.start_address = addr
         self.sync_reader.data_length = length
@@ -1148,7 +1148,7 @@ class MotorsBus(abc.ABC):
     def sync_write(
         self,
         data_name: str,
-        values: Value | dict[str, Value],
+        values: Union[Value, Dict[str, Value]],
         *,
         normalize: bool = True,
         num_retry: int = 0,
@@ -1191,7 +1191,7 @@ class MotorsBus(abc.ABC):
         self,
         addr: int,
         length: int,
-        ids_values: dict[int, int],
+        ids_values: Dict[int, int],
         num_retry: int = 0,
         raise_on_error: bool = True,
         err_msg: str = "",
@@ -1211,7 +1211,7 @@ class MotorsBus(abc.ABC):
 
         return comm
 
-    def _setup_sync_writer(self, ids_values: dict[int, int], addr: int, length: int) -> None:
+    def _setup_sync_writer(self, ids_values: Dict[int, int], addr: int, length: int) -> None:
         self.sync_writer.clearParam()
         self.sync_writer.start_address = addr
         self.sync_writer.data_length = length

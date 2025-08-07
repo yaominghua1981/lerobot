@@ -14,17 +14,18 @@
 
 import abc
 from dataclasses import dataclass
+from typing import Union, Dict
 from pathlib import Path
 
 import draccus
 
 
-@dataclass(kw_only=True)
+@dataclass
 class RobotConfig(draccus.ChoiceRegistry, abc.ABC):
     # Allows to distinguish between different robots of the same type
-    id: str | None = None
+    id: Union[str, None] = None
     # Directory to store calibration file
-    calibration_dir: Path | None = None
+    calibration_dir: Union[Path, None] = None
 
     def __post_init__(self):
         if hasattr(self, "cameras") and self.cameras:

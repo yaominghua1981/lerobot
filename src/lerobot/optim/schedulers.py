@@ -17,6 +17,7 @@ import abc
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Union
 
 import draccus
 from torch.optim import Optimizer
@@ -36,7 +37,7 @@ class LRSchedulerConfig(draccus.ChoiceRegistry, abc.ABC):
         return self.get_choice_name(self.__class__)
 
     @abc.abstractmethod
-    def build(self, optimizer: Optimizer, num_training_steps: int) -> LRScheduler | None:
+    def build(self, optimizer: Optimizer, num_training_steps: int) -> Union[LRScheduler, None]:
         raise NotImplementedError
 
 
@@ -44,7 +45,7 @@ class LRSchedulerConfig(draccus.ChoiceRegistry, abc.ABC):
 @dataclass
 class DiffuserSchedulerConfig(LRSchedulerConfig):
     name: str = "cosine"
-    num_warmup_steps: int | None = None
+    num_warmup_steps: Union[int, None] = None
 
     def build(self, optimizer: Optimizer, num_training_steps: int) -> LambdaLR:
         from diffusers.optimization import get_scheduler

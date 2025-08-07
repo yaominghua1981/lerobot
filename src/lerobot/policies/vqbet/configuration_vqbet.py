@@ -17,6 +17,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
+from typing import Union, Dict, List, Tuple
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -96,7 +97,7 @@ class VQBeTConfig(PreTrainedConfig):
     n_action_pred_token: int = 3
     action_chunk_size: int = 5
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.IDENTITY,
             "STATE": NormalizationMode.MIN_MAX,
@@ -107,9 +108,9 @@ class VQBeTConfig(PreTrainedConfig):
     # Architecture / modeling.
     # Vision backbone.
     vision_backbone: str = "resnet18"
-    crop_shape: tuple[int, int] | None = (84, 84)
+    crop_shape: Union[Tuple[int, int], None] = (84, 84)
     crop_is_random: bool = True
-    pretrained_backbone_weights: str | None = None
+    pretrained_backbone_weights: Union[str, None] = None
     use_group_norm: bool = True
     spatial_softmax_num_keypoints: int = 32
     # VQ-VAE
@@ -134,7 +135,7 @@ class VQBeTConfig(PreTrainedConfig):
 
     # Training presets
     optimizer_lr: float = 1e-4
-    optimizer_betas: tuple = (0.95, 0.999)
+    optimizer_betas: Tuple = (0.95, 0.999)
     optimizer_eps: float = 1e-8
     optimizer_weight_decay: float = 1e-6
     optimizer_vqvae_lr: float = 1e-3
@@ -188,11 +189,11 @@ class VQBeTConfig(PreTrainedConfig):
                 )
 
     @property
-    def observation_delta_indices(self) -> list:
+    def observation_delta_indices(self) -> List:
         return list(range(1 - self.n_obs_steps, 1))
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(1 - self.n_obs_steps, self.n_action_pred_token + self.action_chunk_size - 1))
 
     @property

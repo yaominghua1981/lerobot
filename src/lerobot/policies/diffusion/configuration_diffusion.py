@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass, field
+from typing import Union, Dict, List, Tuple
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -108,7 +109,7 @@ class DiffusionConfig(PreTrainedConfig):
     horizon: int = 16
     n_action_steps: int = 8
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.MEAN_STD,
             "STATE": NormalizationMode.MIN_MAX,
@@ -123,14 +124,14 @@ class DiffusionConfig(PreTrainedConfig):
     # Architecture / modeling.
     # Vision backbone.
     vision_backbone: str = "resnet18"
-    crop_shape: tuple[int, int] | None = (84, 84)
+    crop_shape: Union[Tuple[int, int], None] = (84, 84)
     crop_is_random: bool = True
-    pretrained_backbone_weights: str | None = None
+    pretrained_backbone_weights: Union[str, None] = None
     use_group_norm: bool = True
     spatial_softmax_num_keypoints: int = 32
     use_separate_rgb_encoder_per_camera: bool = False
     # Unet.
-    down_dims: tuple[int, ...] = (512, 1024, 2048)
+    down_dims: Tuple[int, ...] = (512, 1024, 2048)
     kernel_size: int = 5
     n_groups: int = 8
     diffusion_step_embed_dim: int = 128
@@ -146,7 +147,7 @@ class DiffusionConfig(PreTrainedConfig):
     clip_sample_range: float = 1.0
 
     # Inference
-    num_inference_steps: int | None = None
+    num_inference_steps: Union[int, None] = None
 
     # Loss computation
     do_mask_loss_for_padding: bool = False
@@ -225,11 +226,11 @@ class DiffusionConfig(PreTrainedConfig):
                 )
 
     @property
-    def observation_delta_indices(self) -> list:
+    def observation_delta_indices(self) -> List:
         return list(range(1 - self.n_obs_steps, 1))
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(1 - self.n_obs_steps, 1 - self.n_obs_steps + self.horizon))
 
     @property

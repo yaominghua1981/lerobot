@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass, field
+from typing import Union, Dict, List, Tuple
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import NormalizationMode
@@ -112,7 +113,7 @@ class TDMPCConfig(PreTrainedConfig):
     horizon: int = 5
     n_action_steps: int = 1
 
-    normalization_mapping: dict[str, NormalizationMode] = field(
+    normalization_mapping: Dict[str, NormalizationMode] = field(
         default_factory=lambda: {
             "VISUAL": NormalizationMode.IDENTITY,
             "STATE": NormalizationMode.IDENTITY,
@@ -208,13 +209,13 @@ class TDMPCConfig(PreTrainedConfig):
                 raise ValueError(f"Only square images are handled now. Got image shape {image_ft.shape}.")
 
     @property
-    def observation_delta_indices(self) -> list:
+    def observation_delta_indices(self) -> List:
         return list(range(self.horizon + 1))
 
     @property
-    def action_delta_indices(self) -> list:
+    def action_delta_indices(self) -> List:
         return list(range(self.horizon))
 
     @property
-    def reward_delta_indices(self) -> None:
+    def reward_delta_indices(self) -> List:
         return list(range(self.horizon))
