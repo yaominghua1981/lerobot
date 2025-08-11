@@ -676,6 +676,28 @@ class VLAFlowMatching(nn.Module):
 
         self.set_requires_grad()
         
+        # Ensure all newly created layers are on the same device as the VLM model
+        try:
+            target_device = next(self.vlm_with_expert.parameters()).device
+            # Force CUDA cache cleanup before moving layers
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            
+            self.state_proj = self.state_proj.to(target_device)
+            self.action_in_proj = self.action_in_proj.to(target_device)
+            self.action_out_proj = self.action_out_proj.to(target_device)
+            self.action_time_mlp_in = self.action_time_mlp_in.to(target_device)
+            self.action_time_mlp_out = self.action_time_mlp_out.to(target_device)
+            
+            # Final sync and cache cleanup
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+        except Exception as e:
+            print(f"Warning: Device placement failed: {e}")
+            # Continue without device placement as fallback
+        
         # Handle both SmolVLM processor and fallback processor
         if hasattr(self.vlm_with_expert.processor, 'tokenizer'):
             # SmolVLM processor case
@@ -726,10 +748,10 @@ class VLAFlowMatching(nn.Module):
         embs = []
         pad_masks = []
         att_masks = []
-        for _img_idx, (
-            img,
-            img_mask,
-        ) in enumerate(zip(images, img_masks, strict=False)):
+        # Python 3.8 compatibility: zip has no strict kwarg; assert lengths first then iterate
+        if len(images) != len(img_masks):
+            raise ValueError(f"images and img_masks must have same length, got {len(images)} and {len(img_masks)}")
+        for _img_idx, (img, img_mask) in enumerate(zip(images, img_masks)):
             if self.add_image_special_tokens:
                 image_start_token = (
                     self.vlm_with_expert.embed_language_tokens(

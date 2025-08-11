@@ -146,17 +146,49 @@ class SmolVLMWithExpertModel(nn.Module):
                                             super().__init__()
                                             self.config = config
                                             self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
-                                            self.layers = nn.ModuleList([
-                                                nn.TransformerEncoderLayer(
+                                            # Create layers with GPT-style attributes for compatibility
+                                            self.layers = nn.ModuleList()
+                                            for _ in range(config.num_hidden_layers):
+                                                layer = nn.TransformerEncoderLayer(
                                                     d_model=config.hidden_size,
                                                     nhead=config.num_attention_heads,
                                                     dim_feedforward=config.intermediate_size,
                                                     dropout=0.0,
                                                     activation=config.hidden_act,
                                                     batch_first=True
-                                                ) for _ in range(config.num_hidden_layers)
-                                            ])
+                                                )
+                                                # Add GPT-style attributes for compatibility
+                                                layer.input_layernorm = layer.norm1
+                                                layer.post_attention_layernorm = layer.norm2
+                                                
+                                                # Create separate projection layers for compatibility
+                                                embed_dim = config.hidden_size
+                                                layer.self_attn.q_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                layer.self_attn.k_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                layer.self_attn.v_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                # Replace out_proj with a new safe linear layer
+                                                layer.self_attn.o_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                
+                                                # Create a proper MLP that matches GPT structure
+                                                class TransformerMLP(nn.Module):
+                                                    def __init__(self, hidden_size, intermediate_size):
+                                                        super().__init__()
+                                                        self.c_fc = nn.Linear(hidden_size, intermediate_size)
+                                                        self.c_proj = nn.Linear(intermediate_size, hidden_size)
+                                                        self.act = nn.GELU()
+                                                    
+                                                    def forward(self, x):
+                                                        x = self.c_fc(x)
+                                                        x = self.act(x)
+                                                        x = self.c_proj(x)
+                                                        return x
+                                                
+                                                layer.mlp = TransformerMLP(config.hidden_size, config.intermediate_size)
+                                                self.layers.append(layer)
                                             self.norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+                                        
+                                        def get_input_embeddings(self):
+                                            return self.embed_tokens
                                     
                                     self.text_model = TextModel(config)
                                     
@@ -165,25 +197,58 @@ class SmolVLMWithExpertModel(nn.Module):
                                         def __init__(self, config):
                                             super().__init__()
                                             self.config = config
-                                            self.dtype = torch.float32
+                                            # Prefer lower precision on CUDA to reduce memory
+                                            self.dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
                                             self.embed_tokens = nn.Linear(3 * 224 * 224, config.hidden_size)
-                                            self.layers = nn.ModuleList([
-                                                nn.TransformerEncoderLayer(
+                                            # Create layers with GPT-style attributes for compatibility
+                                            self.layers = nn.ModuleList()
+                                            for _ in range(4):
+                                                layer = nn.TransformerEncoderLayer(
                                                     d_model=config.hidden_size,
                                                     nhead=config.num_attention_heads,
                                                     dim_feedforward=config.intermediate_size,
                                                     dropout=0.0,
                                                     activation=config.hidden_act,
                                                     batch_first=True
-                                                ) for _ in range(4)
-                                            ])
+                                                )
+                                                # Add GPT-style attributes for compatibility
+                                                layer.input_layernorm = layer.norm1
+                                                layer.post_attention_layernorm = layer.norm2
+                                                
+                                                # Create separate projection layers for compatibility
+                                                embed_dim = config.hidden_size
+                                                layer.self_attn.q_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                layer.self_attn.k_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                layer.self_attn.v_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                # Replace out_proj with a new safe linear layer
+                                                layer.self_attn.o_proj = nn.Linear(embed_dim, embed_dim, bias=True)
+                                                
+                                                # Create a proper MLP that matches GPT structure
+                                                class TransformerMLP(nn.Module):
+                                                    def __init__(self, hidden_size, intermediate_size):
+                                                        super().__init__()
+                                                        self.c_fc = nn.Linear(hidden_size, intermediate_size)
+                                                        self.c_proj = nn.Linear(intermediate_size, hidden_size)
+                                                        self.act = nn.GELU()
+                                                    
+                                                    def forward(self, x):
+                                                        x = self.c_fc(x)
+                                                        x = self.act(x)
+                                                        x = self.c_proj(x)
+                                                        return x
+                                                
+                                                layer.mlp = TransformerMLP(config.hidden_size, config.intermediate_size)
+                                                self.layers.append(layer)
                                             self.norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
                                         
                                         def __call__(self, pixel_values, patch_attention_mask=None):
                                             batch_size = pixel_values.shape[0]
-                                            # 简化的视觉处理
+                                            # 简化的视觉处理，保持与输入相同的device和dtype
                                             return type('obj', (object,), {
-                                                'last_hidden_state': torch.zeros(batch_size, 256, self.config.hidden_size)
+                                                'last_hidden_state': torch.zeros(
+                                                    batch_size, 256, self.config.hidden_size,
+                                                    device=pixel_values.device, dtype=self.dtype
+                                                )
                                             })
                                     
                                     self.vision_model = VisionModel(config)
@@ -192,9 +257,8 @@ class SmolVLMWithExpertModel(nn.Module):
                                     class Connector(nn.Module):
                                         def __init__(self):
                                             super().__init__()
-                                            self.modality_projection = nn.ModuleDict({
-                                                'proj': nn.Linear(config.hidden_size, config.hidden_size)
-                                            })
+                                            # Use identity to avoid extra GPU matmul on fallback path
+                                            self.modality_projection = nn.ModuleDict({'proj': nn.Identity()})
                                         
                                         def __call__(self, x):
                                             return self.modality_projection['proj'](x)
@@ -271,11 +335,16 @@ class SmolVLMWithExpertModel(nn.Module):
                             class DummyVisionModel(nn.Module):
                                 def __init__(self):
                                     super().__init__()
-                                    self.dtype = torch.float32
+                                    self.dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
                                 def __call__(self, pixel_values, patch_attention_mask=None):
-                                    # Return dummy output
+                                    # Return dummy output on the same device and dtype as input
                                     batch_size = pixel_values.shape[0]
-                                    return type('obj', (object,), {'last_hidden_state': torch.zeros(batch_size, 256, config.hidden_size)})()
+                                    return type('obj', (object,), {
+                                        'last_hidden_state': torch.zeros(
+                                            batch_size, 256, config.hidden_size,
+                                            device=pixel_values.device, dtype=self.dtype
+                                        )
+                                    })()
                             self.vision_model = DummyVisionModel()
                             # Add dummy connector for compatibility
                             class DummyConnector(nn.Module):
@@ -335,11 +404,16 @@ class SmolVLMWithExpertModel(nn.Module):
                             class DummyVisionModel(nn.Module):
                                 def __init__(self):
                                     super().__init__()
-                                    self.dtype = torch.float32
+                                    self.dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
                                 def __call__(self, pixel_values, patch_attention_mask=None):
-                                    # Return dummy output
+                                    # Return dummy output on the same device and dtype as input
                                     batch_size = pixel_values.shape[0]
-                                    return type('obj', (object,), {'last_hidden_state': torch.zeros(batch_size, 256, config.hidden_size)})()
+                                    return type('obj', (object,), {
+                                        'last_hidden_state': torch.zeros(
+                                            batch_size, 256, config.hidden_size,
+                                            device=pixel_values.device, dtype=self.dtype
+                                        )
+                                    })()
                             self.vision_model = DummyVisionModel()
                             # Add dummy connector for compatibility
                             class DummyConnector(nn.Module):
@@ -365,8 +439,19 @@ class SmolVLMWithExpertModel(nn.Module):
                 raise e
         if num_vlm_layers > 0:
             print(f"Reducing the number of VLM layers to {num_vlm_layers} ...")
-            self.get_vlm_model().text_model.layers = self.get_vlm_model().text_model.layers[:num_vlm_layers]
-        self.num_vlm_layers = len(self.get_vlm_model().text_model.layers)
+            # GPT2Model uses 'h' attribute instead of 'layers'
+            if hasattr(self.get_vlm_model().text_model, 'layers'):
+                self.get_vlm_model().text_model.layers = self.get_vlm_model().text_model.layers[:num_vlm_layers]
+            elif hasattr(self.get_vlm_model().text_model, 'h'):
+                self.get_vlm_model().text_model.h = self.get_vlm_model().text_model.h[:num_vlm_layers]
+        
+        # Get layer count properly
+        if hasattr(self.get_vlm_model().text_model, 'layers'):
+            self.num_vlm_layers = len(self.get_vlm_model().text_model.layers)
+        elif hasattr(self.get_vlm_model().text_model, 'h'):
+            self.num_vlm_layers = len(self.get_vlm_model().text_model.h)
+        else:
+            self.num_vlm_layers = 0
         self.config = config
         # Smaller lm expert
         if hasattr(config, 'text_config'):
@@ -412,22 +497,36 @@ class SmolVLMWithExpertModel(nn.Module):
         lm_expert_config.n_inner = get_intermediate_size(int(hidden_size * expert_width_multiplier))
         lm_expert_config.n_layer = self.num_vlm_layers
         if num_expert_layers > 0:
-            assert len(self.get_vlm_model().text_model.layers) % num_expert_layers == 0, (
-                f"Number of layers in the VLM {len(self.get_vlm_model().text_model.layers)} are not multiple of num_expert_layers {num_expert_layers}"
+            # Check layer count compatibility using the correct attribute
+            vlm_layer_count = 0
+            if hasattr(self.get_vlm_model().text_model, 'layers'):
+                vlm_layer_count = len(self.get_vlm_model().text_model.layers)
+            elif hasattr(self.get_vlm_model().text_model, 'h'):
+                vlm_layer_count = len(self.get_vlm_model().text_model.h)
+                
+            assert vlm_layer_count % num_expert_layers == 0, (
+                f"Number of layers in the VLM {vlm_layer_count} are not multiple of num_expert_layers {num_expert_layers}"
             )
             lm_expert_config.n_layer = num_expert_layers
         self.lm_expert = AutoModel.from_config(lm_expert_config)
 
-        # Handle both SmolVLM and fallback models
+        # Handle both SmolVLM and fallback models - check for correct layer attribute
         if hasattr(self.lm_expert, 'layers'):
             self.num_expert_layers = len(self.lm_expert.layers)
+        elif hasattr(self.lm_expert, 'h'):
+            self.num_expert_layers = len(self.lm_expert.h)
         else:
             # For fallback models, use a default value
             self.num_expert_layers = 16
         self.self_attn_every_n_layers = self_attn_every_n_layers
         if "cross" in attention_mode:
             # Reshape qkv projections to have the same input dimension as the vlm
-            layers = self.lm_expert.layers if hasattr(self.lm_expert, 'layers') else []
+            if hasattr(self.lm_expert, 'layers'):
+                layers = self.lm_expert.layers
+            elif hasattr(self.lm_expert, 'h'):
+                layers = self.lm_expert.h
+            else:
+                layers = []
             for layer_idx in range(len(layers)):
                 if self.self_attn_every_n_layers > 0 and layer_idx % self.self_attn_every_n_layers == 0:
                     continue
@@ -735,8 +834,20 @@ class SmolVLMWithExpertModel(nn.Module):
                 expert_layer = None
             else:
                 expert_layer_index = i // multiple_of if multiple_of > 0 else i
+                # Use correct layer attribute for both models
+            if hasattr(models[1], 'layers'):
                 expert_layer = models[1].layers[expert_layer_index]
-            vlm_layers.append(models[0].layers[i])
+            elif hasattr(models[1], 'h'):
+                expert_layer = models[1].h[expert_layer_index]
+            else:
+                expert_layer = None
+                
+            if hasattr(models[0], 'layers'):
+                vlm_layers.append(models[0].layers[i])
+            elif hasattr(models[0], 'h'):
+                vlm_layers.append(models[0].h[i])
+            else:
+                vlm_layers.append(None)
             expert_layers.append(expert_layer)
         return [vlm_layers, expert_layers]
 
