@@ -77,6 +77,40 @@ from lerobot.policies.utils import (
 )
 from lerobot.utils.utils import get_safe_dtype
 
+# 添加安全处理函数
+def safe_get_suffix_output(outputs_embeds, chunk_size, expert_hidden_size, fallback_device, fallback_batch_size=None):
+    """
+    安全地获取 suffix_out，如果为 None 则返回零张量作为后备
+    
+    Args:
+        outputs_embeds: 模型输出的嵌入列表
+        chunk_size: 块大小
+        expert_hidden_size: expert隐藏层维度
+        fallback_device: 后备张量的设备
+        fallback_batch_size: 后备张量的批次大小（如果为None则从outputs_embeds推断）
+    
+    Returns:
+        suffix_out: 安全的输出张量
+    """
+    suffix_out = outputs_embeds[1] if len(outputs_embeds) > 1 else None
+    
+    if suffix_out is None:
+        # 尝试推断批次大小
+        if fallback_batch_size is None and outputs_embeds and outputs_embeds[0] is not None:
+            fallback_batch_size = outputs_embeds[0].shape[0]
+        elif fallback_batch_size is None:
+            fallback_batch_size = 1
+        
+        # 创建一个零张量作为后备，形状与期望输出匹配
+        # 注意：这里应该是 expert_hidden_size 而不是 max_action_dim
+        fallback_shape = (fallback_batch_size, chunk_size, expert_hidden_size)
+        suffix_out = torch.zeros(fallback_shape, device=fallback_device, dtype=torch.float32)
+    else:
+        suffix_out = suffix_out[:, -chunk_size:]
+        suffix_out = suffix_out.to(dtype=torch.float32)
+    
+    return suffix_out
+
 # Matches ".soNNN", optionally followed by "-something", up to the "_buffer_" marker
 _VARIANT_RE = re.compile(r"\.so\d+(?:-[\w]+)?_buffer_")
 
@@ -899,7 +933,7 @@ class VLAFlowMatching(nn.Module):
 
         att_2d_masks = make_att_2d_masks(pad_masks, att_masks)
         position_ids = torch.cumsum(pad_masks, dim=1) - 1
-        (_, suffix_out), _ = self.vlm_with_expert.forward(
+        outputs_embeds, _ = self.vlm_with_expert.forward(
             attention_mask=att_2d_masks,
             position_ids=position_ids,
             past_key_values=None,
@@ -907,9 +941,16 @@ class VLAFlowMatching(nn.Module):
             use_cache=False,
             fill_kv_cache=False,
         )
-        suffix_out = suffix_out[:, -self.config.chunk_size :]
-        # Original openpi code, upcast attention output
-        suffix_out = suffix_out.to(dtype=torch.float32)
+        
+        # 使用安全处理函数
+        suffix_out = safe_get_suffix_output(
+            outputs_embeds, 
+            self.config.chunk_size, 
+            self.vlm_with_expert.expert_hidden_size, 
+            u_t.device, 
+            u_t.shape[0]
+        )
+        
         v_t = self.action_out_proj(suffix_out)
         losses = F.mse_loss(u_t, v_t, reduction="none")
         return losses
@@ -984,8 +1025,15 @@ class VLAFlowMatching(nn.Module):
             use_cache=self.config.use_cache,
             fill_kv_cache=False,
         )
-        suffix_out = outputs_embeds[1]
-        suffix_out = suffix_out[:, -self.config.chunk_size :]
-        suffix_out = suffix_out.to(dtype=torch.float32)
+        
+        # 使用安全处理函数
+        suffix_out = safe_get_suffix_output(
+            outputs_embeds, 
+            self.config.chunk_size, 
+            self.vlm_with_expert.expert_hidden_size, 
+            x_t.device, 
+            x_t.shape[0]
+        )
+        
         v_t = self.action_out_proj(suffix_out)
         return v_t

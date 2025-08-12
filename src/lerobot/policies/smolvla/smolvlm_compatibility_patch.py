@@ -7,6 +7,13 @@ import os
 import sys
 import torch
 import torch.nn as nn
+import builtins as _builtins
+
+# Silence verbose mapping/registration prints by default
+def _silent_print(*args, **kwargs):
+    return
+if os.getenv("SMOLVLM_REG_VERBOSE", "0") != "1":
+    print = _silent_print  # type: ignore
 
 # 在导入 transformers 之前先注册
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING
