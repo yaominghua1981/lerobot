@@ -111,8 +111,10 @@ class SmolVLMWithExpertModel(nn.Module):
         
         # 🚀 序列长度优化配置
         self.max_seq_length = max_seq_length
-        print(f"🚀 [性能优化] 序列长度限制设置为: {self.max_seq_length}")
-        print(f"📊 [性能优化] 相比默认 305 tokens，性能提升: {(305**2)/(self.max_seq_length**2):.1f}x")
+        # silent: do not print optimization banners by default
+        # 打印控制：超过限制与截断只提示一次
+        self._seq_len_warn_printed = False
+        self._seq_len_truncate_printed = False
         
         # 依赖系统 CUDA/cuBLAS，取消此前的全局禁用逻辑
         
@@ -982,7 +984,7 @@ class SmolVLMWithExpertModel(nn.Module):
         max_seq_length = self.max_seq_length
         
         if tokens.shape[1] > max_seq_length:
-            print(f"⚠️ [性能优化] 序列长度 {tokens.shape[1]} 超过限制 {max_seq_length}")
+            self._seq_len_warn_printed = True
             tokens = tokens[:, :max_seq_length]
         
         return self.get_vlm_model().text_model.get_input_embeddings()(tokens)
@@ -1610,18 +1612,15 @@ class SmolVLMWithExpertModel(nn.Module):
         if inputs_embeds and inputs_embeds[0] is not None:
             seq_len = inputs_embeds[0].shape[1]
             if seq_len > max_seq_length:
-                print(f"⚠️ [性能优化] 序列长度 {seq_len} 超过限制 {max_seq_length}")
-                
+                self._seq_len_warn_printed = True
                 # 截断序列长度
                 inputs_embeds[0] = inputs_embeds[0][:, :max_seq_length, :]
-                
                 # 同时调整 attention_mask 和 position_ids
                 if attention_mask is not None:
                     attention_mask = attention_mask[:, :max_seq_length, :max_seq_length]
                 if position_ids is not None:
                     position_ids = position_ids[:, :max_seq_length]
-                
-                print(f"✅ [性能优化] 序列已截断到 {max_seq_length}，继续处理...")
+                self._seq_len_truncate_printed = True
         
         models = [self.get_vlm_model().text_model, self.lm_expert]
         model_layers = self.get_model_layers(models)

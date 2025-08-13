@@ -486,7 +486,8 @@ class SmolVLAPolicy(PreTrainedPolicy):
             # effectively has shape (n_action_steps, batch_size, *), hence the transpose.
             self._queues[ACTION].extend(actions.transpose(0, 1)[: self.config.n_action_steps])
 
-        return self._queues[ACTION].popleft()
+        action = self._queues[ACTION].popleft()
+        return action
 
     def forward(self, batch: Dict[str, Tensor], noise=None, time=None) -> Dict[str, Tensor]:
         """Do a full training forward pass to compute the loss"""
