@@ -222,7 +222,14 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
             return self.paligemma.model.get_image_features(image)
 
     def embed_language_tokens(self, tokens: torch.Tensor):
-        return self.paligemma.language_model.embed_tokens(tokens)
+        lm = self.paligemma.language_model
+        # Try multiple access patterns across transformers versions
+        if hasattr(lm, "embed_tokens") and callable(getattr(lm, "embed_tokens")):
+            return lm.embed_tokens(tokens)
+        if hasattr(lm, "model") and hasattr(lm.model, "embed_tokens"):
+            return lm.model.embed_tokens(tokens)
+        # Fallback to standard API
+        return lm.get_input_embeddings()(tokens)
 
     # TODO: break down this huge forward into modules or functions
     def forward(
@@ -234,7 +241,11 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         use_cache: bool | None = None,
         fill_kv_cache: bool | None = None,
     ):
-        models = [self.paligemma.language_model, self.gemma_expert.model]
+        # Resolve underlying text backbones to a uniform interface
+        pg_lm_outer = getattr(self.paligemma, "language_model", None)
+        pg_text_model = getattr(pg_lm_outer, "model", pg_lm_outer)
+        ge_text_model = getattr(self.gemma_expert, "model", self.gemma_expert)
+        models = [pg_text_model, ge_text_model]
 
         for hidden_states in inputs_embeds:
             # TODO this is very inefficient
@@ -401,9 +412,12 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
 
         att_weights = torch.matmul(query_states, key_states.transpose(2, 3))
         att_weights *= head_dim**-0.5
-        big_neg = -2.3819763e38  # See gemma/modules.py
-
-        masked_att_weights = torch.where(attention_mask[:, None, :, :], att_weights, big_neg)
+        # Use dtype-safe negative infinity to avoid overflow under fp16 autocast
+        finfo = torch.finfo(att_weights.dtype)
+        big_neg = finfo.min if finfo.min < -1e4 else -1e4
+        masked_att_weights = torch.where(
+            attention_mask[:, None, :, :], att_weights, torch.full_like(att_weights, big_neg)
+        )
 
         probs = nn.functional.softmax(masked_att_weights, dim=-1)
         probs = probs.to(dtype=value_states.dtype)
