@@ -56,6 +56,7 @@ from collections import deque
 import torch
 import torch.nn.functional as F  # noqa: N812
 from torch import Tensor, nn
+from pathlib import Path
 from transformers import AutoTokenizer
 
 from lerobot.constants import ACTION, OBS_STATE
@@ -249,7 +250,56 @@ class PI0Policy(PreTrainedPolicy):
             config.output_features, config.normalization_mapping, dataset_stats
         )
 
-        self.language_tokenizer = AutoTokenizer.from_pretrained("google/paligemma-3b-pt-224")
+        # Prefer local tokenizer when a policy path is provided; otherwise rely on HF cache (offline)
+        tokenizer_loaded = False
+        pretrained_path = getattr(config, "pretrained_path", None)
+        if isinstance(pretrained_path, (str, Path)):
+            base_dir = Path(pretrained_path)
+            candidate_dirs = [
+                base_dir,
+                base_dir / "tokenizer",
+                base_dir / "language_tokenizer",
+                base_dir / "paligemma-3b-pt-224",
+                base_dir / "google" / "paligemma-3b-pt-224",
+            ]
+            # Also scan one level of subdirectories for tokenizer files
+            try:
+                for sub in base_dir.iterdir():
+                    if sub.is_dir():
+                        candidate_dirs.append(sub)
+            except Exception:
+                pass
+
+            tokenizer_filenames = {
+                "tokenizer.json",
+                "tokenizer_config.json",
+                "spiece.model",
+                "vocab.json",
+            }
+            for cand in candidate_dirs:
+                try:
+                    if any((cand / name).exists() for name in tokenizer_filenames):
+                        self.language_tokenizer = AutoTokenizer.from_pretrained(
+                            str(cand), local_files_only=True
+                        )
+                        tokenizer_loaded = True
+                        break
+                except Exception:
+                    continue
+
+        if not tokenizer_loaded:
+            # Last resort: try cache-only load of the default HF tokenizer id
+            try:
+                self.language_tokenizer = AutoTokenizer.from_pretrained(
+                    "google/paligemma-3b-pt-224", local_files_only=True
+                )
+                tokenizer_loaded = True
+            except Exception as e:
+                raise RuntimeError(
+                    "Tokenizer files not found locally. Please place tokenizer files under the provided "
+                    "policy.path (e.g., in a 'tokenizer' subfolder), or ensure they exist in the local HF "
+                    "cache for offline use."
+                ) from e
         self.model = PI0FlowMatching(config)
 
         self.reset()
