@@ -404,8 +404,8 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
 
         # Attention here is upcasted to float32 to match the original eager implementation.
 
-        query_states = query_states.to(dtype=torch.float32)
-        key_states = key_states.to(dtype=torch.float32)
+        #query_states = query_states.to(dtype=torch.float32)
+        #key_states = key_states.to(dtype=torch.float32)
 
         query_states = query_states.transpose(1, 2)
         key_states = key_states.transpose(1, 2)
