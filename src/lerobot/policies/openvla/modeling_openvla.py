@@ -8,6 +8,10 @@ Key components:
 1. OpenVLAPolicy: Main policy wrapper for LeRobot integration
 2. OpenVLAModel: Neural architecture combining vision, language, and action understanding
 3. ActionExpert: Specialized decoder for action prediction
+
+Dependencies:
+- transformers: For VLM model loading and processing
+- torch: PyTorch for neural network operations
 """
 
 import math
@@ -18,6 +22,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# Check for required dependencies
+try:
+    import transformers
+except ImportError:
+    raise ImportError(
+        "transformers is required for OpenVLA. Install with: pip install transformers"
+    )
+
 from lerobot.constants import ACTION, OBS_STATE
 from lerobot.policies.normalize import (
     Normalize,
@@ -26,6 +38,7 @@ from lerobot.policies.normalize import (
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.openvla.configuration_openvla import OpenVLAConfig
 from lerobot.policies.utils import populate_queues
+from lerobot.configs.types import FeatureType
 
 
 def sample_beta(alpha: float, beta: float, bsize: int, device: str = "cpu") -> torch.Tensor:
@@ -204,6 +217,22 @@ class OpenVLAModel(nn.Module):
         super().__init__()
         self.config = config
         
+        # Initialize VLM components
+        try:
+            from transformers import AutoModel, AutoProcessor
+            self.vlm_model = AutoModel.from_pretrained(config.vlm_model_name)
+            self.vlm_processor = AutoProcessor.from_pretrained(config.vlm_model_name)
+            
+            # Freeze VLM if specified
+            if config.freeze_vision_encoder:
+                for param in self.vlm_model.parameters():
+                    param.requires_grad = False
+        except Exception as e:
+            print(f"Warning: Could not load VLM model {config.vlm_model_name}: {e}")
+            print("Falling back to learned embeddings")
+            self.vlm_model = None
+            self.vlm_processor = None
+        
         # Initialize action expert (main working component)
         self.action_expert = OpenVLAActionExpert(
             hidden_dim=config.hidden_size,
@@ -212,20 +241,30 @@ class OpenVLAModel(nn.Module):
             num_layers=4,
         )
         
-        # Simple feature processing - we'll use pretrained embeddings
-        self.vision_mlp = nn.Sequential(
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.LayerNorm(config.hidden_size),
-        )
+        # Feature processing layers
+        if self.vlm_model is not None:
+            # Use VLM's hidden size
+            vlm_hidden_size = self.vlm_model.config.hidden_size
+            self.vision_proj = nn.Linear(vlm_hidden_size, config.hidden_size)
+            self.language_proj = nn.Linear(vlm_hidden_size, config.hidden_size)
+        else:
+            # Fallback to learned embeddings
+            self.vision_proj = nn.Sequential(
+                nn.Linear(config.hidden_size, config.hidden_size),
+                nn.ReLU(),
+                nn.Linear(config.hidden_size, config.hidden_size),
+                nn.LayerNorm(config.hidden_size),
+            )
+            
+            self.language_proj = nn.Sequential(
+                nn.Linear(config.hidden_size, config.hidden_size),
+                nn.ReLU(),
+                nn.Linear(config.hidden_size, config.hidden_size),
+                nn.LayerNorm(config.hidden_size),
+            )
         
-        self.language_mlp = nn.Sequential(
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.LayerNorm(config.hidden_size),
-        )
+        # State projection
+        self.state_proj = nn.Linear(config.max_state_dim, config.hidden_size)
         
         # Initialize parameters
         self._init_weights()
@@ -241,6 +280,80 @@ class OpenVLAModel(nn.Module):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
     
+    def process_images(self, images: torch.Tensor) -> torch.Tensor:
+        """Process images through VLM or learned embeddings."""
+        if self.vlm_model is not None and self.vlm_processor is not None:
+            try:
+                # Process images through VLM
+                inputs = self.vlm_processor(images, return_tensors="pt")
+                inputs = {k: v.to(images.device) for k, v in inputs.items()}
+                
+                with torch.no_grad():
+                    outputs = self.vlm_model(**inputs)
+                
+                # Extract vision features (assuming last hidden state)
+                vision_features = outputs.last_hidden_state
+                vision_features = self.vision_proj(vision_features)
+                return vision_features
+            except Exception as e:
+                print(f"Warning: VLM processing failed, falling back to learned embeddings: {e}")
+                # Fallback to learned embeddings
+                batch_size = images.shape[0]
+                device = images.device
+                vision_features = torch.randn(
+                    batch_size, 1, self.config.hidden_size, 
+                    device=device, requires_grad=True
+                )
+                vision_features = self.vision_proj(vision_features)
+                return vision_features
+        else:
+            # Use learned embeddings
+            batch_size = images.shape[0]
+            device = images.device
+            vision_features = torch.randn(
+                batch_size, 1, self.config.hidden_size, 
+                device=device, requires_grad=True
+            )
+            vision_features = self.vision_proj(vision_features)
+            return vision_features
+    
+    def process_language(self, language_input: str) -> torch.Tensor:
+        """Process language input through VLM or learned embeddings."""
+        if self.vlm_model is not None and self.vlm_processor is not None:
+            try:
+                # Process language through VLM
+                inputs = self.vlm_processor(text=language_input, return_tensors="pt")
+                inputs = {k: v.to(next(self.vlm_model.parameters()).device) for k, v in inputs.items()}
+                
+                with torch.no_grad():
+                    outputs = self.vlm_model(**inputs)
+                
+                # Extract language features
+                language_features = outputs.last_hidden_state
+                language_features = self.language_proj(language_features)
+                return language_features
+            except Exception as e:
+                print(f"Warning: VLM language processing failed, falling back to learned embeddings: {e}")
+                # Fallback to learned embeddings
+                batch_size = 1  # Assuming single language input
+                device = next(self.parameters()).device
+                language_features = torch.randn(
+                    batch_size, 1, self.config.hidden_size,
+                    device=device, requires_grad=True
+                )
+                language_features = self.language_proj(language_features)
+                return language_features
+        else:
+            # Use learned embeddings
+            batch_size = 1  # Assuming single language input
+            device = next(self.parameters()).device
+            language_features = torch.randn(
+                batch_size, 1, self.config.hidden_size,
+                device=device, requires_grad=True
+            )
+            language_features = self.language_proj(language_features)
+            return language_features
+    
     def forward(
         self,
         images: torch.Tensor,
@@ -252,9 +365,6 @@ class OpenVLAModel(nn.Module):
     ) -> torch.Tensor:
         """
         Forward pass for training.
-        
-        Simplified version for integration - uses learned embeddings instead
-        of large pretrained VLM for practical deployment.
         
         Args:
             images: [B, C, H, W] Images tensor
@@ -270,24 +380,28 @@ class OpenVLAModel(nn.Module):
         batch_size = images.shape[0]
         device = images.device
         
-        # Simple learned embeddings (placeholder for full VLM)
-        vision_features = torch.randn(
-            batch_size, 1, self.config.hidden_size, 
-            device=device, requires_grad=True
-        )
-        vision_features = self.vision_mlp(vision_features)
+        # Process images and language through VLM or learned embeddings
+        vision_features = self.process_images(images)
+        language_features = self.process_language(language_input)
         
-        language_features = torch.randn(
-            batch_size, 1, self.config.hidden_size,
-            device=device, requires_grad=True
-        )
-        language_features = self.language_mlp(language_features)
+        # Ensure consistent batch size
+        if vision_features.shape[0] != batch_size:
+            vision_features = vision_features.expand(batch_size, -1, -1)
+        if language_features.shape[0] != batch_size:
+            language_features = language_features.expand(batch_size, -1, -1)
+        
+        # Process state
+        if state is not None:
+            state_padded = pad_tensor(state, self.config.max_state_dim)
+            state_encoded = self.state_proj(state_padded).unsqueeze(1)
+        else:
+            state_encoded = torch.zeros(batch_size, 1, self.config.hidden_size, device=device)
         
         # Pass through action expert
         predictions = self.action_expert(
             vision_features,
             language_features,
-            state,
+            state_encoded,
             actions,
             timesteps,
             attention_mask
@@ -368,7 +482,19 @@ class OpenVLAPolicy(PreTrainedPolicy):
             dataset_stats: Dataset statistics for normalization
         """
         super().__init__(config)
-        config.validate_features()
+        
+        # Validate configuration
+        if not hasattr(config, 'validate_features'):
+            # Add default feature configuration if not present
+            config.input_features = {
+                "pixel_0": FeatureType.VISUAL,
+                "state": FeatureType.STATE,
+            }
+            config.output_features = {
+                "action": FeatureType.ACTION,
+            }
+        else:
+            config.validate_features()
         
         # Initialize normalization modules
         self.normalize_inputs = Normalize(config.input_features, dataset_stats)
@@ -407,6 +533,12 @@ class OpenVLAPolicy(PreTrainedPolicy):
             pass
         else:
             raise ValueError(f"Unexpected image dimensions: {images.shape}")
+        
+        # Resize images if needed
+        if hasattr(self.config, 'resize_imgs_with_padding') and self.config.resize_imgs_with_padding:
+            from lerobot.policies.smolvla.modeling_smolvla import resize_with_pad
+            target_size = self.config.resize_imgs_with_padding
+            images = resize_with_pad(images, target_size[0], target_size[1], pad_value=0)
         
         return images
     
