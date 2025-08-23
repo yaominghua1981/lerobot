@@ -11,6 +11,8 @@ class OpenVLAConfig(PolicyConfig):
     
     # Training Configuration
     chunk_size: int = 10
+    n_obs_steps: int = 1
+    n_action_steps: int = 10
     num_steps: int = 50
     freeze_vision_encoder: bool = True
     freeze_language_model: bool = True
