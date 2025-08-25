@@ -29,7 +29,6 @@ from safetensors.torch import load_model as load_model_as_safetensor, save_model
 from torch import Tensor, nn
 
 from lerobot.configs.policies import PreTrainedConfig
-from lerobot.configs.train import TrainPipelineConfig
 from lerobot.utils.hub import HubMixin
 
 T = TypeVar("T", bound="PreTrainedPolicy")
@@ -191,7 +190,7 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
 
     def push_model_to_hub(
         self,
-        cfg: TrainPipelineConfig,
+        cfg: "TrainPipelineConfig",
     ):
         api = HfApi()
         repo_id = api.create_repo(
